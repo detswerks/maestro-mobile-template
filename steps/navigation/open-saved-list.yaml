@@ -1,0 +1,30 @@
+# Reusable Action Step: Open Saved List Screen
+# Navigates to the Saved tab from anywhere in the app
+
+- runScript: ../../pom/home.pom.js
+- runScript: ../../pom/saved_list.pom.js
+- runScript: ../../pom/article_detail.pom.js
+- runScript: ../../pom/search.pom.js
+
+# If on Article Detail screen, navigate up to exit article
+- runFlow:
+    when:
+      visible: ${output.articleDetailScreen.btnNavigateUp}
+    commands:
+      - tapOn: ${output.articleDetailScreen.btnNavigateUp}
+
+# If in search mode, navigate up to return to main tabs
+- runFlow:
+    when:
+      visible:
+        id: ${output.searchScreen.btnSearchClose}
+    commands:
+      - tapOn: ${output.searchScreen.btnNavigateUp}
+
+# Tap the Saved tab on bottom navigation
+- tapOn:
+    id: ${output.homeScreen.navTabReadingLists}
+
+# Anchor verification: Confirm arrival on Saved screen
+- assertVisible:
+    id: ${output.savedListScreen.mainToolbar}

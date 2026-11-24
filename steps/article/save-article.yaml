@@ -1,0 +1,22 @@
+# Reusable Action Step: Save Article
+# Bookmarks/saves the current article to the reading list
+
+- runScript: ../../pom/article_detail.pom.js
+
+# Dismiss introductory tooltip if present ("Customize your toolbar -> Got it")
+- runFlow:
+    when:
+      visible: ${output.articleDetailScreen.txtGotIt}
+    commands:
+      - tapOn: ${output.articleDetailScreen.txtGotIt}
+
+# Bookmark article
+- tapOn:
+    id: ${output.articleDetailScreen.pageSave}
+
+# Verify save confirmation banner/sheet
+- assertVisible:
+    text: ${output.articleDetailScreen.txtSavedConfirmation}
+
+# Dismiss the save confirmation bottom sheet
+- back

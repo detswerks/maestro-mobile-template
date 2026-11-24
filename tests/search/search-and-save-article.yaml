@@ -1,0 +1,29 @@
+appId: ${APP_ID}
+tags:
+  - smoke
+  - search
+  - article
+---
+# 1. Load Test Data & POM Locators
+- runScript: ../../data/search-data.js
+- runScript: ../../pom/index.js
+
+# 2. Launch App with Clean State
+- launchApp:
+    clearState: true
+
+# 3. Dismiss Initial Onboarding Flow (Prerequisite Step)
+- runFlow: ../../steps/onboarding/dismiss-onboarding.yaml
+
+# 4. Navigate to Search Screen
+- runFlow: ../../steps/navigation/open-search.yaml
+
+# 5. Search for Article & Open Detail Screen
+- runFlow:
+    file: ../../steps/search/search-and-select-article.yaml
+    env:
+      query: ${output.searchData.query}
+      expectedTitle: ${output.searchData.expectedTitle}
+
+# 6. Verify Article Detail & Save Article
+- runFlow: ../../steps/article/save-article.yaml

@@ -1,0 +1,26 @@
+# Reusable Action Step: Dismiss Onboarding
+# Navigates through the initial onboarding carousel to reach the Home screen
+
+- runScript: ../../pom/onboarding.pom.js
+- runScript: ../../pom/home.pom.js
+
+# Conditional dismissal: Only runs if Onboarding is actively displayed
+- runFlow:
+    when:
+      visible: ${output.onboardingScreen.btnForward}
+    commands:
+      # Slide 1 -> Slide 2
+      - tapOn: ${output.onboardingScreen.btnForward}
+
+      # Slide 2 -> Slide 3
+      - tapOn: ${output.onboardingScreen.btnForward}
+
+      # Slide 3 -> Slide 4
+      - tapOn: ${output.onboardingScreen.btnForward}
+
+      # Slide 4: Skip directly to Home screen
+      - tapOn: ${output.onboardingScreen.btnSkip}
+
+# Ensure arrival on the Home screen
+- assertVisible:
+    id: ${output.homeScreen.navTabHome}

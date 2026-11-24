@@ -1,0 +1,24 @@
+# Reusable Action Step: Search and Select Article
+# Enters search query and taps the matching article result
+
+- runScript: ../../pom/search.pom.js
+- runScript: ../../pom/article_detail.pom.js
+
+# Tap search bar on Search screen
+- tapOn:
+    id: ${output.searchScreen.inputSearchCard}
+
+# Input search query
+- tapOn:
+    id: ${output.searchScreen.inputSearchSrcText}
+- eraseText
+- inputText: ${query}
+
+# Select the target article from search results
+- tapOn:
+    containsChild:
+      text: ^${expectedTitle}$
+
+# Anchor verification: Confirm arrival on Article Detail screen
+- assertVisible:
+    id: ${output.articleDetailScreen.pageSave}
