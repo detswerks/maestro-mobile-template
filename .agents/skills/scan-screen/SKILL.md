@@ -13,7 +13,7 @@ Use this skill when asked to scan a screen, harvest locators for a new page, or 
 
 This skill pairs deterministic script automation with agent curation (following `.agents/AGENTS.md` Rules 1, 2, and 5):
 
-1. **Automated Extraction & Merge (`npm run pom:scan <screen>`):** Runs `scripts/harvest-pom.js <screen>`, which queries `maestro-runner hierarchy`, strips 90% of raw UI noise, non-destructively writes/updates `pom/<screen>.pom.js`, and auto-registers `require("./<screen>.pom.js");` in `pom/index.js`.
+1. **Automated Extraction & Merge (`npm run pom:scan <screen>`):** Runs `scripts/harvest-pom.js <screen>`, which queries `maestro hierarchy`, strips 90% of raw UI noise, non-destructively writes/updates `pom/<screen>.pom.js`, and bundles all `pom/*.pom.js` files into `pom/index.js` (compatible with Maestro's GraalJS runtime without `require()`).
 2. **Agent Curation & Verification:** Review the generated `pom/<screen>.pom.js` (or pass `--json` first to inspect raw candidates), refine semantic variable names, and capture any multi-slide or text-anchor locators if needed.
 
 ---
@@ -96,11 +96,8 @@ Review and refine keys in `pom/<screen>.pom.js` if auto-generated names need cle
 
 ---
 
-### 5. Verify `pom/index.js` Registration & Lint
-Confirm `pom/index.js` includes the CommonJS `require` import (auto-added by `scripts/harvest-pom.js`):
-```javascript
-require("./<screen>.pom.js");
-```
+### 5. Verify `pom/index.js` Bundle & Lint
+Confirm `pom/index.js` includes the updated `output.<screenName>Screen` dictionary (auto-bundled by `scripts/harvest-pom.js` for Maestro's GraalJS runtime without `require()`).
 
 Validate existing tests and flows:
 ```bash

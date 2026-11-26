@@ -1,6 +1,6 @@
 # AGENTS.md: Rules & Operating Context for AI Coding Agents
 
-You are operating inside **Maestro Mobile Template**, a mobile UI test automation repository powered by **maestro-runner** and standard **Maestro YAML** flows.
+You are operating inside **Maestro Mobile Template**, a mobile UI test automation repository powered by the official **[Maestro CLI](https://maestro.mobile.dev/)** (`maestro`) and standard **Maestro YAML** flows.
 
 When generating, maintaining, or debugging tests in this repository, you must strictly follow these rules:
 
@@ -34,8 +34,8 @@ To eliminate selector duplication and ensure maintainability, all code belongs t
      ```bash
      npm run pom:scan <screen_name>
      # Or directly:
-     MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --platform android --driver uiautomator2 hierarchy --compact
-     MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --platform android --driver uiautomator2 hierarchy --find "<keyword>"
+     maestro hierarchy --compact
+     maestro hierarchy
      ```
   2. Extract the verified `id` (or text regex if no ID exists).
   3. Create/update the POM in `pom/<screen>.pom.js` and register it in `pom/index.js`.
@@ -44,7 +44,7 @@ To eliminate selector duplication and ensure maintainability, all code belongs t
 
 ## 3. Test Data Management (`data/`)
 
-* Store static fixtures and dynamic mock generators in `data/*.js`.
+* Store static fixtures and environment-aware (`staging` / `production`) mock generators in `data/*.js`.
 * Load them in tests using `- runScript: ../../data/<fixture>.js`.
 * Access data via `${output.<dataNamespace>.<fieldName>}`.
 
@@ -53,11 +53,11 @@ To eliminate selector duplication and ensure maintainability, all code belongs t
 ## 4. Test Execution & Determinism Rules
 
 * **Mandatory Clean State (`launchApp: clearState: true`):** Every test scenario in `tests/` must begin with `- launchApp: clearState: true`. This guarantees complete test isolation, prevents cache or preference pollution across runs, and ensures tests can execute independently in any order. Any prerequisites must be declared explicitly via Tier 2 `steps/`.
-* **Pre-flight Lint:** Always lint modified files before executing (`MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner lint tests/<feature>/<scenario>.yaml` or `steps/<feature>/<action>.yaml`, or `npm run lint` for `tests/`) to ensure valid syntax and `runFlow` paths.
+* **Pre-flight Syntax Check:** Always validate modified files before executing (`maestro check-syntax tests/<feature>/<scenario>.yaml` or `maestro check-syntax steps/<feature>/<action>.yaml`, or `npm run lint`).
 * **Preserve `appId`:** Always keep `appId: ${APP_ID}` in flow headers.
 * **No Arbitrary Sleeps:** Never add `- wait: <ms>` unless waiting for external time-delayed events. Maestro commands wait automatically up to their timeout.
 * **Text Input:** Always `tapOn` an input field before `inputText`, and use `eraseText` first to avoid appending characters to pre-filled fields.
-* **Telemetry & Drivers:** Always include `MAESTRO_RUNNER_NO_TELEMETRY=1`. Default to `--driver uiautomator2` on Android and `--driver wda` on iOS.
+* **Analytics Opt-Out:** Set `MAESTRO_CLI_NO_ANALYTICS=1` when running CLI commands.
 
 ---
 
@@ -69,7 +69,7 @@ To eliminate selector duplication and ensure maintainability, all code belongs t
   If you are asked to scan a screen, create a step, or automate a feature, and:
   1. The target screen is not currently visible on the active device, AND
   2. The navigation path to reach it is not documented in `context/test-flows.md`, `context/app-description.md`, or existing `steps/`,
-  
+
   **You MUST STOP and ask the user for directions before performing any actions.**
 
 * **When to Pause and Ask:**
@@ -85,7 +85,7 @@ To eliminate selector duplication and ensure maintainability, all code belongs t
 ## 6. Targeted Test Execution, Single-Pass Rule & Flow Knowledge Maintenance
 
 * **Targeted Test Execution (Zero Full-Suite Runs):**
-  * Never run the entire `tests/` directory (`maestro-runner test tests/`) during test generation, bug fixing, or feature verification.
+  * Never run the entire `tests/` directory (`maestro test tests/`) during test generation, bug fixing, or feature verification.
   * Only execute the specific target test file being authored or modified, plus any directly affected dependent test files if shared `steps/` or `pom/` entries were updated.
 * **Single-Pass Completion (No Redundant Re-Runs):**
   * When a test flow passes 100% on execution, **stop immediately**.
@@ -96,85 +96,65 @@ To eliminate selector duplication and ensure maintainability, all code belongs t
 
 ---
 
-## 7. Maestro Runner CLI & Tooling Reference
-
-`maestro-runner` is a single Go binary that runs Maestro YAML flows directly without requiring a JVM or standard Maestro installation.
+## 7. Official Maestro CLI Reference
 
 ### 7.1 Diagnostic & Environment Commands
 ```bash
-# Verify local toolchain, dependencies, and platform drivers
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner doctor
-
-# List all active/connected physical devices and emulators
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner devices
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner devices --json # Machine-readable device list for automation
+# Verify Maestro CLI version and connected devices
+maestro --version
+maestro list-devices
 ```
 
 ### 7.2 Live Screen Inspection & Locator Discovery
 ```bash
-# Print active UI hierarchy in compact format (one element per line)
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --platform android --driver uiautomator2 hierarchy --compact
+# Print active UI hierarchy in JSON format
+maestro hierarchy
 
-# Search active screen hierarchy for specific keyword or text
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --platform android --driver uiautomator2 hierarchy --find "Sign in"
-
-# Capture a full screenshot of the active device screen
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --platform android --driver uiautomator2 screenshot screenshot.png
+# Print active UI hierarchy in compact CSV format
+maestro hierarchy --compact
 ```
 
 ### 7.3 Test Execution & Core Flags
 ```bash
-# Standard targeted test execution (Android default)
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --env-file .env --driver uiautomator2 test tests/<feature>/<test-file>.yaml
+# Standard targeted test execution (source .env for APP_ID / APP_ENV)
+set -a; source .env; set +a
+MAESTRO_CLI_NO_ANALYTICS=1 maestro test -e APP_ID="$APP_ID" -e APP_ENV="$APP_ENV" tests/<feature>/<test-file>.yaml
 
-# iOS simulator / device execution
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --env-file .env --platform ios --driver wda test tests/<feature>/<test-file>.yaml
-
-# Web / Desktop Chrome execution
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --platform web --headed test tests/<feature>/<test-file>.yaml
+# Or via scripts/run.sh (handles .env, tag filtering, lint, and HTML reports)
+./scripts/run.sh --env staging tests/<feature>/<test-file>.yaml
 
 # Passing dynamic environment variables
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --driver uiautomator2 test -e KEY=value -e ANOTHER_KEY=value tests/<feature>/<test-file>.yaml
+MAESTRO_CLI_NO_ANALYTICS=1 maestro test -e KEY=value -e ANOTHER_KEY=value tests/<feature>/<test-file>.yaml
 
 # Running tests filtered by tags
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --env-file .env --driver uiautomator2 test --include-tags smoke --exclude-tags flaky tests/
+MAESTRO_CLI_NO_ANALYTICS=1 maestro test -e APP_ID="$APP_ID" --include-tags smoke --exclude-tags demo tests/
 
-# Install app package before test execution (.apk, .app, .ipa)
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --env-file .env --driver uiautomator2 --app-file app.apk test tests/<feature>/<test-file>.yaml
+# Sharded parallel execution across multiple devices
+MAESTRO_CLI_NO_ANALYTICS=1 maestro test -e APP_ID="$APP_ID" --shard-split 2 tests/
 
-# Parallel execution across multiple devices
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --env-file .env --driver uiautomator2 test --parallel 2 tests/
-
-# Screen recording (saves recording.mp4 in report assets)
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --env-file .env --driver uiautomator2 test --record tests/<feature>/<test-file>.yaml
+# Detailed HTML report output
+MAESTRO_CLI_NO_ANALYTICS=1 maestro test -e APP_ID="$APP_ID" --format HTML-DETAILED --output reports/report.html --test-output-dir reports/latest tests/<feature>/<test-file>.yaml
 ```
 
-### 7.4 Pre-flight Syntax & Flow Validation
+### 7.4 Pre-flight Syntax Validation
 ```bash
-# Validate flow syntax, references, and runFlow paths without waking a device
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner lint tests/<feature>/<test-file>.yaml
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner lint steps/<feature>/<action>.yaml
-npm run lint # Validates all scenarios under tests/
+maestro check-syntax tests/<feature>/<test-file>.yaml
+maestro check-syntax steps/<feature>/<action>.yaml
+npm run lint # Validates all flows under steps/ and tests/
 ```
 
 ---
 
 ## 8. Test Reports & Failure Triage
 
-Every execution generates structured test run results under `./reports/<timestamp>/` (or custom directory via `--output <dir>`):
+When executed via `scripts/run.sh` (or `maestro test --test-output-dir`), outputs are saved under `./reports/<timestamp>/`:
 
-### 8.1 Report Structure
-* **`report.html`**: Visual, human-readable HTML test summary with step-by-step screenshots and durations.
-* **`report.json`**: Top-level summary containing overall status, pass/fail counts, total duration, and flow metadata.
-* **`flows/<flow-name>.json`**: Detailed per-step execution log, exact duration, status, and failure messages for each command.
-* **`junit-report.xml`**: Standard JUnit XML format for CI/CD integration.
-* **`assets/`**: Captured screenshots, error hierarchy dumps, and video recordings (`recording.mp4` when `--record` is used).
+* **`report.html`**: Detailed HTML report (`--format HTML-DETAILED` or `HTML`).
+* **`manifest.json` / `commands.json`**: Execution metadata and per-step command details.
+* **`logs/` & `takeScreenshot/`**: Runner logs and screenshots captured during the flow.
 
-### 8.2 Failure Triage Protocol
-When a test fails, follow this triage procedure before modifying any code:
-1. **Inspect Failed Step Details:** Check the terminal output or the specific error recorded in `./reports/<timestamp>/flows/<flow-name>.json`.
-2. **Review Failure Visuals:** Open the failure screenshot in `./reports/<timestamp>/assets/` to see the actual visual UI state at the moment of failure.
-3. **Check Error Hierarchy:** Inspect the element tree dump in `./reports/<timestamp>/assets/` to determine if an ID changed, an unexpected modal is covering the screen, or an element is not clickable.
+### Failure Triage Protocol
+1. **Inspect Failed Step Details:** Check the terminal output, `report.html`, or `commands.json` inside `./reports/<timestamp>/`.
+2. **Review Logs & Screenshots:** Inspect `logs/` and any failure screenshots in `./reports/<timestamp>/`.
+3. **Check Live Hierarchy:** Run `maestro hierarchy` if needed to verify changed IDs, unexpected modals, or scroll state.
 4. **Fix Root Cause:** Update the appropriate Tier (POM locator in Tier 1, reusable action in Tier 2, or assertion in Tier 3), then run a single targeted re-test to verify.
-
-

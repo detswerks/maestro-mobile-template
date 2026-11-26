@@ -1,3 +1,5 @@
+appId: ${APP_ID}
+---
 # Reusable Action Step: Explore Home Feed Tabs
 - runScript: ../../pom/home.pom.js
 

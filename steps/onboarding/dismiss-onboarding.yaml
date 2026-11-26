@@ -1,3 +1,5 @@
+appId: ${APP_ID}
+---
 # Reusable Action Step: Dismiss Onboarding Flow and Verify Homepage
 - runScript: ../../pom/onboarding.pom.js
 - runScript: ../../pom/home.pom.js

@@ -1,3 +1,5 @@
+appId: ${APP_ID}
+---
 # Reusable Action Step: Search Query and Open Article Result
 - runScript: ../../pom/home.pom.js
 - runScript: ../../pom/search.pom.js

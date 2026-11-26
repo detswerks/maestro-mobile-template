@@ -1,3 +1,5 @@
+appId: ${APP_ID}
+---
 # Reusable Action Step: Inspect In-Article Find and Table of Contents
 - runScript: ../../pom/article_detail.pom.js
 

@@ -1,3 +1,5 @@
+appId: ${APP_ID}
+---
 # Reusable Action Step: Filter Saved Articles and Verify Match
 - runScript: ../../pom/saved_list.pom.js
 

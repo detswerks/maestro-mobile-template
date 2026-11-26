@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/run.sh - Interactive & CLI Test Runner for Maestro Mobile Template
+# scripts/run.sh - Interactive & CLI Test Runner for Official Maestro CLI
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -21,11 +21,8 @@ APP_ID_OVERRIDDEN=false
 STAGING_APP_ID="${STAGING_APP_ID:-$APP_ID}"
 PRODUCTION_APP_ID="${PRODUCTION_APP_ID:-$APP_ID}"
 PLATFORM="${PLATFORM:-android}"
-DRIVER=""
 DEVICE=""
-ARTIFACTS="on-failure"
-RETRIES="${TEST_RETRIES:-0}"
-DISABLE_ANIMATIONS=true
+REPORT_FORMAT="HTML-DETAILED"
 OPEN_REPORT=false
 APP_FILE=""
 AUTO_EMULATOR=false
@@ -51,16 +48,12 @@ Options:
   --env-file <path>            Path to .env file (default: .env)
   -t, --tag <tag>              Include tests with tag (repeatable or comma-separated)
   -x, --exclude-tag <tag>      Exclude tests with tag (repeatable or comma-separated)
-  --artifacts <mode>           Screenshot/hierarchy capture: on-failure | always | never (default: on-failure)
-  --retries <n>                Retry failed flows up to N times in the same run (default: 0)
-  --disable-animations         Disable system animations during run (default: true on Android)
-  --keep-animations            Keep system animations enabled
+  --format <fmt>               Report format: HTML-DETAILED | HTML | JUNIT | NOOP (default: HTML-DETAILED)
   -p, --platform <name>        Platform: android | ios | web (default: android)
-  -d, --driver <name>          Driver: uiautomator2 | wda | devicelab | appium (auto-selected by platform)
   --device <id>                Target specific device/emulator ID
-  --app-file <path>            Install .apk/.app/.ipa before running tests
-  --emulator                   Auto-start Android emulator
-  --parallel <n>               Run across N connected devices (default: 1)
+  --app-file <path>            Install .apk/.app before running tests (Android via adb install)
+  --emulator                   Start Android device via `maestro start-device`
+  --parallel <n>               Shard flows across N connected devices (default: 1)
   --open                       Automatically open report.html after execution (WSL2/Linux/macOS)
   --dry-run                    Preview resolved lint + test commands without executing
   --execute                    Execute lint + tests (default behavior)
@@ -76,6 +69,13 @@ require_value() {
   fi
 }
 
+normalize_lower() {
+  local val="${1:-}"
+  val="${val#"${val%%[![:space:]]*}"}"
+  val="${val%"${val##*[![:space:]]}"}"
+  echo "${val,,}"
+}
+
 split_csv_into_array() {
   local input="$1"
   local -n target_arr="$2"
@@ -87,13 +87,6 @@ split_csv_into_array() {
       target_arr+=("$part")
     fi
   done
-}
-
-normalize_lower() {
-  local val="${1:-}"
-  val="${val#"${val%%[![:space:]]*}"}"
-  val="${val%"${val##*[![:space:]]}"}"
-  echo "${val,,}"
 }
 
 if [[ $# -eq 0 ]]; then
@@ -119,18 +112,14 @@ while [[ $# -gt 0 ]]; do
     --env-file) require_value "$1" "${2:-}"; ENV_FILE="$2"; shift 2 ;;
     -t|--tag) require_value "$1" "${2:-}"; split_csv_into_array "$2" INCLUDE_TAGS; shift 2 ;;
     -x|--exclude-tag) require_value "$1" "${2:-}"; split_csv_into_array "$2" EXCLUDE_TAGS; shift 2 ;;
-    --artifacts) require_value "$1" "${2:-}"; ARTIFACTS="$2"; shift 2 ;;
-    --retries) require_value "$1" "${2:-}"; RETRIES="$2"; shift 2 ;;
-    --disable-animations) DISABLE_ANIMATIONS=true; shift ;;
-    --keep-animations) DISABLE_ANIMATIONS=false; shift ;;
+    --format) require_value "$1" "${2:-}"; REPORT_FORMAT="${2^^}"; shift 2 ;;
     -p|--platform) require_value "$1" "${2:-}"; PLATFORM="$2"; shift 2 ;;
-    -d|--driver) require_value "$1" "${2:-}"; DRIVER="$2"; shift 2 ;;
-    --device) require_value "$1" "${2:-}"; DEVICE="$2"; shift 2 ;;
+    --device|--udid) require_value "$1" "${2:-}"; DEVICE="$2"; shift 2 ;;
     --app-file) require_value "$1" "${2:-}"; APP_FILE="$2"; shift 2 ;;
     --emulator) AUTO_EMULATOR=true; shift ;;
     --parallel) require_value "$1" "${2:-}"; PARALLEL="$2"; shift 2 ;;
     --open) OPEN_REPORT=true; shift ;;
-    -e|--output) require_value "$1" "${2:-}"; EXTRA_ARGS+=("$1" "$2"); shift 2 ;;
+    -e|--output|--debug-output|--test-output-dir) require_value "$1" "${2:-}"; EXTRA_ARGS+=("$1" "$2"); shift 2 ;;
     -*) EXTRA_ARGS+=("$1"); shift ;;
     *)
       if [[ "$1" == *.yaml || "$1" == *.yml || -d "$1" ]]; then
@@ -231,12 +220,10 @@ scan_test_tags() {
   ' "$mode" "$inc_csv" "$exc_csv" "${TARGETS[@]}"
 }
 
-# Helper: Discover all tags present in target YAML files
 discover_tags() {
   scan_test_tags "discover" "" ""
 }
 
-# Helper: Resolve filtered test files matching include/exclude tags
 resolve_filtered_tests() {
   local inc_csv=""
   local exc_csv=""
@@ -306,31 +293,24 @@ if [[ "$INTERACTIVE" == true ]]; then
   split_csv_into_array "$exc_choice" EXCLUDE_TAGS
   echo ""
 
-  # 4. Choose Screenshot Config
-  echo "4) Screenshot / Artifacts Config:"
-  echo "   [1] on-failure (recommended)"
-  echo "   [2] always"
-  echo "   [3] never"
-  read -r -p "   Artifacts [1/2/3] (default: 1): " art_choice
-  case "$(normalize_lower "${art_choice:-1}")" in
-    1|on-failure|"") ARTIFACTS="on-failure" ;;
-    2|always) ARTIFACTS="always" ;;
-    3|never) ARTIFACTS="never" ;;
-    *) ARTIFACTS="on-failure" ;;
+  # 4. Choose Report Format
+  echo "4) Report Format:"
+  echo "   [1] HTML-DETAILED (recommended)"
+  echo "   [2] HTML"
+  echo "   [3] JUNIT"
+  echo "   [4] NOOP"
+  read -r -p "   Format [1/2/3/4] (default: 1): " fmt_choice
+  case "$(normalize_lower "${fmt_choice:-1}")" in
+    1|html-detailed|"") REPORT_FORMAT="HTML-DETAILED" ;;
+    2|html) REPORT_FORMAT="HTML" ;;
+    3|junit) REPORT_FORMAT="JUNIT" ;;
+    4|noop) REPORT_FORMAT="NOOP" ;;
+    *) REPORT_FORMAT="HTML-DETAILED" ;;
   esac
   echo ""
 
-  # 5. Retries, Animations & Report Open
-  read -r -p "5) Retries on failure [${RETRIES}]: " retries_input
-  RETRIES="${retries_input:-$RETRIES}"
-
-  read -r -p "   Disable system animations? [Y/n]: " anim_input
-  case "$(normalize_lower "${anim_input:-y}")" in
-    n|no) DISABLE_ANIMATIONS=false ;;
-    *) DISABLE_ANIMATIONS=true ;;
-  esac
-
-  read -r -p "   Open report.html automatically after run? [y/N]: " open_input
+  # 5. Open Report Option
+  read -r -p "5) Open report.html automatically after run? [y/N]: " open_input
   case "$(normalize_lower "${open_input:-n}")" in
     y|yes) OPEN_REPORT=true ;;
     *) OPEN_REPORT=false ;;
@@ -347,18 +327,7 @@ if [[ "$INTERACTIVE" == false && "$APP_ID_OVERRIDDEN" == false ]]; then
   fi
 fi
 
-# Default open-source drivers
-if [[ -z "$DRIVER" ]]; then
-  if [[ "$PLATFORM" == "ios" ]]; then
-    DRIVER="wda"
-  elif [[ "$PLATFORM" == "web" ]]; then
-    DRIVER="cdp"
-  else
-    DRIVER="uiautomator2"
-  fi
-fi
-
-# 5. Resolve & Lint Tag-Filtered Tests
+# Resolve & Lint Tag-Filtered Tests
 mapfile -t FILTERED_FILES < <(resolve_filtered_tests)
 
 if [[ ${#FILTERED_FILES[@]} -eq 0 ]]; then
@@ -366,19 +335,21 @@ if [[ ${#FILTERED_FILES[@]} -eq 0 ]]; then
   exit 1
 fi
 
-LINT_CMD=("npx" "maestro-runner" "lint" "${FILTERED_FILES[@]}")
+RUN_TIMESTAMP="$(date +%Y-%m-%d_%H-%M-%S)"
+REPORT_DIR="reports/${RUN_TIMESTAMP}"
+REPORT_EXT="html"
+if [[ "$REPORT_FORMAT" == "JUNIT" ]]; then
+  REPORT_EXT="xml"
+fi
+REPORT_FILE="${REPORT_DIR}/report.${REPORT_EXT}"
 
-# Build [global options] test [test options] <targets>
-TEST_CMD=("npx" "maestro-runner" "--platform" "$PLATFORM" "--driver" "$DRIVER")
+LINT_CMD=("node" "scripts/lint.js" "${FILTERED_FILES[@]}")
+
+# Build official `maestro` CLI command
+TEST_CMD=("maestro" "--platform" "$PLATFORM")
 
 if [[ -n "$DEVICE" ]]; then
   TEST_CMD+=("--device" "$DEVICE")
-fi
-if [[ -n "$APP_FILE" ]]; then
-  TEST_CMD+=("--app-file" "$APP_FILE")
-fi
-if [[ "$AUTO_EMULATOR" == true ]]; then
-  TEST_CMD+=("--auto-start-emulator")
 fi
 
 TEST_CMD+=("test" "-e" "APP_ENV=$APP_ENV")
@@ -386,23 +357,21 @@ if [[ -n "$APP_ID" ]]; then
   TEST_CMD+=("-e" "APP_ID=$APP_ID")
 fi
 
-for tag in "${INCLUDE_TAGS[@]+"${INCLUDE_TAGS[@]}"}"; do
-  TEST_CMD+=("--include-tags" "$tag")
-done
-for tag in "${EXCLUDE_TAGS[@]+"${EXCLUDE_TAGS[@]}"}"; do
-  TEST_CMD+=("--exclude-tags" "$tag")
-done
-
-TEST_CMD+=("--artifacts" "$ARTIFACTS")
-
-if [[ "$RETRIES" -gt 0 ]]; then
-  TEST_CMD+=("--retries" "$RETRIES")
+if [[ ${#INCLUDE_TAGS[@]} -gt 0 ]]; then
+  TEST_CMD+=("--include-tags" "$(IFS=','; echo "${INCLUDE_TAGS[*]}")")
 fi
+if [[ ${#EXCLUDE_TAGS[@]} -gt 0 ]]; then
+  TEST_CMD+=("--exclude-tags" "$(IFS=','; echo "${EXCLUDE_TAGS[*]}")")
+fi
+
+TEST_CMD+=("--format" "$REPORT_FORMAT")
+if [[ "$REPORT_FORMAT" != "NOOP" ]]; then
+  TEST_CMD+=("--output" "$REPORT_FILE")
+fi
+TEST_CMD+=("--test-output-dir" "$REPORT_DIR")
+
 if [[ "$PARALLEL" -gt 1 ]]; then
-  TEST_CMD+=("--parallel" "$PARALLEL")
-fi
-if [[ "$DISABLE_ANIMATIONS" == true && "$PLATFORM" == "android" ]]; then
-  TEST_CMD+=("--disable-animations")
+  TEST_CMD+=("--shard-split" "$PARALLEL")
 fi
 if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
   TEST_CMD+=("${EXTRA_ARGS[@]}")
@@ -420,40 +389,38 @@ format_cmd() {
 }
 
 show_report_info() {
-  local report_html="$1"
-  echo "Report Path: $report_html"
-  if [[ "$OPEN_REPORT" == true ]]; then
+  local report_path="$1"
+  echo "Report Path: $report_path"
+  if [[ "$OPEN_REPORT" == true && "$REPORT_FORMAT" == HTML* ]]; then
     if [[ -n "${WSL_DISTRO_NAME:-}" ]] && command -v explorer.exe >/dev/null 2>&1; then
-      echo "Open Command: explorer.exe \"\$(wslpath -w \"$report_html\")\""
+      echo "Open Command: explorer.exe \"\$(wslpath -w \"$report_path\")\""
     elif command -v xdg-open >/dev/null 2>&1; then
-      echo "Open Command: xdg-open \"$report_html\""
+      echo "Open Command: xdg-open \"$report_path\""
     elif command -v open >/dev/null 2>&1; then
-      echo "Open Command: open \"$report_html\""
+      echo "Open Command: open \"$report_path\""
     fi
   fi
 }
 
 open_report_file() {
-  local report_html="$1"
-  [[ -f "$report_html" ]] || return 0
+  local report_path="$1"
+  [[ -f "$report_path" ]] || return 0
   if [[ -n "${WSL_DISTRO_NAME:-}" ]] && command -v explorer.exe >/dev/null 2>&1; then
-    explorer.exe "$(wslpath -w "$report_html")" >/dev/null 2>&1 || true
+    explorer.exe "$(wslpath -w "$report_path")" >/dev/null 2>&1 || true
   elif command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "$report_html" >/dev/null 2>&1 || true
+    xdg-open "$report_path" >/dev/null 2>&1 || true
   elif command -v open >/dev/null 2>&1; then
-    open "$report_html" >/dev/null 2>&1 || true
+    open "$report_path" >/dev/null 2>&1 || true
   fi
 }
 
 echo "------------------------------------------------------------"
-echo "Execution Plan"
+echo "Execution Plan (Official Maestro CLI)"
 echo "  Environment : $APP_ENV (APP_ID=${APP_ID:-unset})"
-echo "  Platform    : $PLATFORM ($DRIVER)"
+echo "  Platform    : $PLATFORM"
 echo "  Include Tags: ${INCLUDE_TAGS[*]:-all}"
 echo "  Exclude Tags: ${EXCLUDE_TAGS[*]:-none}"
-echo "  Artifacts   : $ARTIFACTS"
-echo "  Retries     : $RETRIES"
-echo "  Animations  : $([[ "$DISABLE_ANIMATIONS" == true ]] && echo "disabled" || echo "enabled")"
+echo "  Format      : $REPORT_FORMAT"
 echo "  Matched Tests (${#FILTERED_FILES[@]}):"
 for f in "${FILTERED_FILES[@]}"; do
   echo "    - $f"
@@ -461,78 +428,56 @@ done
 echo "------------------------------------------------------------"
 echo "Commands to Execute:"
 echo "  1) Lint:"
-echo "     MAESTRO_RUNNER_NO_TELEMETRY=1 $(format_cmd "${LINT_CMD[@]}")"
+echo "     $(format_cmd "${LINT_CMD[@]}")"
 echo "  2) Test:"
-echo "     MAESTRO_RUNNER_NO_TELEMETRY=1 $(format_cmd "${TEST_CMD[@]}")"
+echo "     $(format_cmd "${TEST_CMD[@]}")"
 echo "------------------------------------------------------------"
 
 if [[ "$EXECUTE" == false ]]; then
-  show_report_info "reports/<timestamp>/report.html"
+  if [[ "$REPORT_FORMAT" != "NOOP" ]]; then
+    show_report_info "$REPORT_FILE"
+  fi
   echo ""
   echo "(Dry-run preview only. Re-run without --dry-run to execute these commands.)"
   exit 0
 fi
 
-export MAESTRO_RUNNER_NO_TELEMETRY=1
+export MAESTRO_CLI_NO_ANALYTICS=1
+
+# Optional auto-start device via official maestro
+if [[ "$AUTO_EMULATOR" == true && "$PLATFORM" != "web" ]]; then
+  echo "Starting device for platform '$PLATFORM'..."
+  maestro start-device --platform "$PLATFORM"
+fi
+
+# Optional APK install on Android
+if [[ -n "$APP_FILE" && "$PLATFORM" == "android" ]]; then
+  echo "Installing app binary: $APP_FILE"
+  adb install -r "$APP_FILE"
+fi
 
 # Pre-flight Device Readiness Check
-if [[ "$PLATFORM" != "web" && "$AUTO_EMULATOR" == false ]]; then
-  echo "Checking connected device readiness..."
-  ready_count="$(npx maestro-runner devices --json | node -e '
-    const fs = require("fs");
-    const raw = fs.readFileSync(0, "utf8");
-    const start = raw.indexOf("[");
-    if (start === -1) { console.log(0); process.exit(0); }
-    const list = JSON.parse(raw.slice(start));
-    const platform = process.argv[1];
-    const targetDevice = process.argv[2];
-    const ready = list.filter(d =>
-      d.platform === platform &&
-      d.ready === true &&
-      (!targetDevice || d.id === targetDevice)
-    );
-    console.log(ready.length);
-  ' "$PLATFORM" "$DEVICE")"
-
-  if [[ "$ready_count" -eq 0 ]]; then
-    echo "Error: No ready '$PLATFORM' device found (check 'npx maestro-runner devices')." >&2
+if [[ "$PLATFORM" == "android" ]]; then
+  if ! adb devices | awk 'NR>1 && $2=="device" {found=1} END {exit !found}'; then
+    echo "Error: No ready Android device/emulator found (check 'adb devices' or 'maestro list-devices')." >&2
     exit 1
   fi
 fi
 
-# Step 5: Lint filtered tests
+# Lint filtered tests
 echo "Linting ${#FILTERED_FILES[@]} filtered test file(s)..."
 "${LINT_CMD[@]}"
 
-# Step 6: Run tests and show report path if generated during this run
-RUN_START_MS="$(node -e 'console.log(Date.now())')"
+# Prepare output folder and execute tests
+mkdir -p "$REPORT_DIR"
 TEST_EXIT=0
 "${TEST_CMD[@]}" || TEST_EXIT=$?
 
-LATEST_REPORT="$(node -e '
-  const fs = require("fs");
-  const path = require("path");
-  const startMs = Number(process.argv[1]);
-  if (!fs.existsSync("reports")) process.exit(0);
-  let newest = null;
-  let newestMs = 0;
-  for (const dir of fs.readdirSync("reports")) {
-    const candidate = path.join("reports", dir, "report.html");
-    if (!fs.existsSync(candidate)) continue;
-    const mtimeMs = fs.statSync(candidate).mtimeMs;
-    if (mtimeMs >= startMs - 1000 && mtimeMs > newestMs) {
-      newestMs = mtimeMs;
-      newest = candidate;
-    }
-  }
-  if (newest) console.log(newest);
-' "$RUN_START_MS")"
-
-if [[ -n "$LATEST_REPORT" ]]; then
+if [[ "$REPORT_FORMAT" != "NOOP" && -f "$REPORT_FILE" ]]; then
   echo "------------------------------------------------------------"
-  show_report_info "$LATEST_REPORT"
+  show_report_info "$REPORT_FILE"
   if [[ "$OPEN_REPORT" == true ]]; then
-    open_report_file "$LATEST_REPORT"
+    open_report_file "$REPORT_FILE"
   fi
 fi
 

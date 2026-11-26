@@ -1,3 +1,5 @@
+appId: ${APP_ID}
+---
 # Reusable Action Step: Save Current Article to Reading List
 - runScript: ../../pom/article_detail.pom.js
 

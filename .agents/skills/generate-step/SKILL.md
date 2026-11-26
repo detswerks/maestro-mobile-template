@@ -24,13 +24,12 @@ flowchart LR
 
 ## Strict Rules for Step Files
 
-### 1. Subflow Contract (Zero Flow Headers)
-Step files are subflows executed by tests via `runFlow`.
-* ⛔ **DO NOT** include `appId: ...`
+### 1. Subflow Contract (Minimal Flow Header)
+Step files are subflows executed by tests via `runFlow`. Official Maestro CLI requires a `appId: ${APP_ID}` + `---` config section at the top of every YAML file, without scenario-level headers:
+* ✅ **Required:** `appId: ${APP_ID}` followed by `---`
 * ⛔ **DO NOT** include `tags: [...]`
 * ⛔ **DO NOT** include `commandTimeout: ...`
 * ⛔ **DO NOT** include `launchApp: ...`
-* ⛔ **DO NOT** include `---` document separators
 
 ### 2. Mandatory POM Imports
 Always import the required Page Object Model(s) at the top of the step:
@@ -124,8 +123,8 @@ Follow **Rule 5** in `.agents/AGENTS.md`: if the UI sequence or entry point is u
 
 ## Pre-flight Lint Verification
 
-After creating or modifying a step, validate the step file directly (and run `npm run lint` for any consuming tests):
+After creating or modifying a step, validate the step file directly (and run `npm run lint` across `steps/` and `tests/`):
 ```bash
-MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner lint steps/<feature>/<action>.yaml
+maestro check-syntax steps/<feature>/<action>.yaml
 npm run lint
 ```

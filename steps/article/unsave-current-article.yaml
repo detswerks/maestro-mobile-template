@@ -1,3 +1,5 @@
+appId: ${APP_ID}
+---
 # Reusable Action Step: Unsave Current Article
 - runScript: ../../pom/article_detail.pom.js
 

@@ -1,26 +1,25 @@
 # Maestro Mobile Template
 
-> A modern, production-grade starter template for mobile UI test automation powered by **[maestro-runner](https://github.com/devicelab-dev/maestro-runner)** and standard **[Maestro](https://maestro.mobile.dev/)** YAML flows.
+> A modern, production-grade starter template for mobile UI test automation powered by the official **[Maestro CLI](https://maestro.mobile.dev/)** (`maestro`) and standard **Maestro YAML** flows.
 
-Built with a strict **3-Tier Architecture** (Locators ➔ Actions ➔ Scenarios), native local emulator lifecycle management, zero Java/JVM dependencies, 100% open-source drivers by default, and built-in AI coding agent skills.
+Built with a strict **3-Tier Architecture** (Locators ➔ Actions ➔ Scenarios), zero-selector test files, and built-in AI coding agent skills.
 
-> **Platform Status Note:** This template has been tested and verified on **Android** only (`uiautomator2`). Support flags for **iOS** (`wda`) and **Web** (`cdp`) are included from `maestro-runner`, but have **not yet been tested or verified** in this repository.
+> **Platform Status Note:** This template has been tested and verified on **Android** only. Support flags for **iOS** and **Web** are included from `maestro`, but have **not yet been tested or verified** in this repository.
 
 ---
 
 ## Why Maestro Mobile Template?
 
-* ⚡ **Zero JVM Overhead**: Powered by `maestro-runner`, a native Go runtime that boots in ~20ms (vs 4–6s JVM warmup) and uses ~27MB RAM.
-* 📱 **Auto-Start Emulators & Simulators**: Automatically boots local Android AVDs or iOS Simulators, runs tests, and shuts them down cleanly.
+* 🎯 **Official Maestro CLI (`maestro`)**: Uses standard Maestro (`2.x`) commands (`maestro test`, `maestro check-syntax`, `maestro hierarchy`, `maestro start-device`).
+* 📱 **Device Lifecycle Support**: Supports connected Android/iOS devices as well as `maestro start-device` for launching local emulators/simulators.
 * 🧩 **Strict 3-Tier Architecture**:
   * **`pom/`** ➔ Pure locator dictionaries (zero action commands, zero selector duplication).
   * **`steps/`** ➔ Reusable action subflows consuming POM locators.
   * **`tests/`** ➔ Declarative test scenarios (**100% zero hardcoded selectors**).
-* 🔒 **100% Open-Source & Private**:
-  * Defaults to open-source drivers (`uiautomator2` on Android, `wda` on iOS).
-  * Telemetry disabled by default (`MAESTRO_RUNNER_NO_TELEMETRY=1`).
+* 🔒 **Privacy & Analytics Opt-Out**:
+  * Analytics disabled by default (`MAESTRO_CLI_NO_ANALYTICS=1`).
 * 🤖 **AI-Agent Ready**: Includes pre-configured agent instructions (`.agents/AGENTS.md`) and custom skills (`.agents/skills/`) for agents like Antigravity, Claude Code, and Cursor.
-* 🖥️ **Easy-to-Read CLI Output & Free Local Reports**: Clear terminal summary with step-by-step pass/fail/skip timings alongside instant HTML (`report.html`), JSON (`report.json`), JUnit XML, and Allure outputs in `./reports/` (with automatic on-failure screenshots and UI hierarchy dumps) without requiring paid cloud subscriptions.
+* 🖥️ **Easy-to-Read CLI Output & Free Local Reports**: Clear terminal summary alongside HTML (`HTML-DETAILED` / `HTML`), JUnit XML, and per-run logs/screenshots in `./reports/` without requiring paid cloud subscriptions.
 
 ---
 
@@ -99,10 +98,8 @@ npm run doctor
    STAGING_APP_ID="com.example.app.staging"
    PRODUCTION_APP_ID="com.example.app"
 
-   # Runner Controls
-   TEST_RETRIES="0"
-   MAESTRO_RUNNER_NO_TELEMETRY=1
-   MAESTRO_ENV_FILE=".env"
+   # Official Maestro CLI Controls
+   MAESTRO_CLI_NO_ANALYTICS=1
    ```
    *(A single `.env` file serves both local runs and CI/CD—just switch by environment name `staging` or `prod`/`production` without typing package IDs manually.)*
 
@@ -131,7 +128,7 @@ Once `.env`, `context/app-description.md`, and your device/emulator are ready (`
 
 ## Running Tests
 
-> **Note:** `maestro-runner` is installed locally as a project `devDependency`, so invoke it via `npx maestro-runner`, `npm run ...`, or `./scripts/run.sh`.
+> **Note:** This branch uses the official **`maestro`** CLI installed on your `$PATH` (verified with Maestro `2.10.0`).
 
 ### Standard NPM Scripts
 
@@ -139,17 +136,15 @@ Once `.env`, `context/app-description.md`, and your device/emulator are ready (`
 | :--- | :--- |
 | `npm run test:staging` | Run via `scripts/run.sh --env staging` (`STAGING_APP_ID` + `staging` data). |
 | `npm run test:prod` | Run via `scripts/run.sh --env production` (`PRODUCTION_APP_ID` + `production` data). |
-| `npm test -- tests/<path>.yaml` | Run a targeted test flow or directory on connected Android device/emulator. |
-| `npm run test:emulator` | Auto-boot local Android emulator, run tests, and shut down after. |
-| `npm run test:ios` | Run tests on iOS Simulator using open-source WebDriverAgent (`wda`). |
-| `npm run test:android` | Explicitly target Android using `uiautomator2`. |
-| `npm run test:smoke` | Run only tests tagged with `smoke`. |
-| `npm run test:regression` | Run only tests tagged with `regression`. |
-| `npm run test:parallel` | Run tests balanced dynamically across 2+ connected devices. |
-| `npm run test:retry` | Automatically retry any failing test once within the same run. |
-| `npm run test:retry-failed` | Re-run only flows that failed in the previous test run. |
-| `npm run lint` | Pre-flight syntax validation across `steps/` and `tests/` without booting devices. |
-| `npm run scan:screen` | Dump compact element tree (1 line per element) of the active screen. |
+| `npm test -- tests/<path>.yaml` | Run a targeted test flow directly via `maestro test`. |
+| `npm run test:emulator` | Start Android device via `maestro start-device` and run tests. |
+| `npm run test:ios` | Run tests targeting iOS (`--platform ios`). |
+| `npm run test:android` | Explicitly target Android (`--platform android`). |
+| `npm run test:smoke` | Run staging tests tagged with `smoke` (excluding `demo`). |
+| `npm run test:regression` | Run staging tests tagged with `regression` (excluding `demo`). |
+| `npm run test:parallel` | Shard tests across 2 connected devices (`--shard-split 2`). |
+| `npm run lint` | Pre-flight syntax validation across `steps/` and `tests/` via `maestro check-syntax`. |
+| `npm run scan:screen` | Dump compact element tree of the active screen via `maestro hierarchy --compact`. |
 | `npm run pom:scan <screen>` | Auto-harvest screen locators into `pom/<screen>.pom.js` and register in `pom/index.js`. |
 
 You can forward flags to `test:staging` / `test:prod` using `--`:
@@ -166,23 +161,23 @@ Run `./scripts/run.sh` with no arguments to launch the **interactive step-by-ste
 1. Pick App ID / environment (`staging`, `production`, or custom)
 2. Pick **include tags** (auto-discovered from `tests/`, comma-separated or `all`)
 3. Pick **exclude tags** (default `none`, comma-separated)
-4. Choose screenshot / artifacts config (`on-failure`, `always`, `never`)
-5. Set `--retries`, toggle `--disable-animations`, and choose whether to auto-open `report.html` (`--open`)
+4. Choose report format (`HTML-DETAILED`, `HTML`, `JUNIT`, `NOOP`)
+5. Choose whether to auto-open `report.html` (`--open`)
 
-By default, `scripts/run.sh` checks device readiness, lints only the tag-filtered tests, executes them, and prints the report path (pass `--dry-run` to preview the resolved commands without running):
+By default, `scripts/run.sh` checks device readiness, lints only the tag-filtered tests (`maestro check-syntax`), executes them via `maestro test`, and prints the report path (pass `--dry-run` to preview the resolved commands without running):
 
 ```bash
 # Interactive wizard (executes after prompts):
 ./scripts/run.sh
 
 # Dry-run preview for staging smoke tests (excluding demo):
-./scripts/run.sh --dry-run --env staging -t smoke,onboarding -x demo --retries 1 --open
+./scripts/run.sh --dry-run --env staging -t smoke,onboarding -x demo --open
 
 # Execute directly on staging or production:
 ./scripts/run.sh --env staging -t smoke -x demo --open
 ./scripts/run.sh --env prod -t regression -x demo
 
-# Auto-start an emulator, install an APK, and execute:
+# Start an emulator, install an APK, and execute:
 ./scripts/run.sh --emulator --app-file ./app-alpha-universal-release.apk -t smoke -x demo
 ```
 
@@ -313,11 +308,9 @@ npm run lint
 
 Reports are automatically generated after every test run and saved in `./reports/<timestamp>/`:
 
-* 🌐 **HTML Report:** `./reports/<timestamp>/report.html` (self-contained overview, step durations, screenshots & hierarchy on failure)
-* 🧾 **JSON Summary:** `./reports/<timestamp>/report.json` (used by `--retry-failed` and automation pipelines)
-* 📑 **JUnit XML:** `./reports/<timestamp>/junit-report.xml` (CI-compatible test results)
-* 📊 **Allure Results:** `./reports/<timestamp>/allure-results/`
-* 📸 **Failure Assets:** `./reports/<timestamp>/assets/` (screenshots and UI hierarchy XML captured `--artifacts on-failure` by default)
+* 🌐 **HTML Report:** `./reports/<timestamp>/report.html` (`--format HTML-DETAILED` or `HTML`)
+* 📑 **JUnit XML:** `./reports/<timestamp>/report.xml` (when `--format JUNIT` is selected)
+* 📸 **Logs & Screenshots:** `./reports/<timestamp>/` (`manifest.json`, `commands.json`, `logs/`, `takeScreenshot/`)
 
 To view the latest report in your browser:
 ```bash
@@ -341,7 +334,7 @@ ls -td reports/*/ | tail -n +6 | xargs -r rm -rf
 rm -rf reports/*
 ```
 
-*(Tip: If you don't need historical timestamps locally, pass `--output ./reports/latest --flatten` to `maestro-runner` to overwrite the same folder on every run.)*
+*(Tip: If you don't need historical timestamps locally, pass `--debug-output ./reports/latest --flatten-debug-output` to `maestro test` to overwrite the same folder on every run.)*
 
 ---
 
@@ -357,7 +350,7 @@ This template is purpose-built for autonomous AI agents (such as Antigravity, Cl
 
 ## Device & Emulator Setup Guide
 
-A high-level directional guide for setting up an Android device or emulator to run UI automation with **Maestro Mobile Template** and **maestro-runner**.
+A high-level directional guide for setting up an Android device or emulator to run UI automation with **Maestro Mobile Template** and **Maestro CLI**.
 
 ### Setup Options Overview
 
@@ -394,7 +387,7 @@ Set up a lightweight, headless-capable emulator without installing the full Andr
 1. Ensure **Java 17+** is installed.
 2. Download Android **Command-Line Tools (`cmdline-tools`)** and configure your environment variables (`ANDROID_HOME` and `PATH`).
 3. Use `sdkmanager` and `avdmanager` to download the emulator/system image and create your AVD.
-4. Launch the emulator via `emulator -avd <avd_name>` (or use `npm run test:emulator` to let `maestro-runner` auto-start it).
+4. Launch the emulator via `emulator -avd <avd_name>` (or use `npm run test:emulator` to start one with `maestro start-device`).
 
 ### Troubleshooting & AI Assistance
 

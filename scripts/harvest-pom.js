@@ -2,21 +2,16 @@
 
 /**
  * scripts/harvest-pom.js
- * 
- * Automatically inspects the active mobile screen via maestro-runner,
+ *
+ * Automatically inspects the active mobile screen via official `maestro hierarchy`,
  * filters UI noise (status bars, layout containers, dynamic feed text),
  * extracts functional interactive and anchor elements, and generates/updates
  * Page Object Model (POM) locator dictionaries.
- * 
- * Supports:
- * - Scenario 1: Fresh 0 setup (generates new POM & registers in pom/index.js)
- * - Scenario 2: Existing repo (non-destructive merge: preserves existing keys & appends new elements)
- * - Flags: --clean / --force (re-harvest screen from scratch, ignoring previous file)
- * 
+ *
  * Usage:
  *   npm run pom:scan <screen_name>
  *   npm run pom:scan <screen_name> -- --clean
- *   node scripts/harvest-pom.js <screen_name> [--clean] [--platform android|ios]
+ *   node scripts/harvest-pom.js <screen_name> [--clean] [--platform android|ios] [--device <id>]
  */
 
 const fs = require('fs');
@@ -32,7 +27,6 @@ const APP_DESC = path.join(ROOT_DIR, 'context', 'app-description.md');
 const args = process.argv.slice(2);
 let screenInput = null;
 let platform = 'android';
-let driver = 'uiautomator2';
 let device = null;
 let forceClean = false;
 let outputJsonOnly = false;
@@ -42,9 +36,7 @@ for (let i = 0; i < args.length; i++) {
     screenInput = args[++i];
   } else if (args[i] === '--platform' || args[i] === '-p') {
     platform = args[++i];
-  } else if (args[i] === '--driver' || args[i] === '-d') {
-    driver = args[++i];
-  } else if (args[i] === '--device') {
+  } else if (args[i] === '--device' || args[i] === '--udid') {
     device = args[++i];
   } else if (args[i] === '--clean' || args[i] === '--force' || args[i] === '-f') {
     forceClean = true;
@@ -55,7 +47,6 @@ for (let i = 0; i < args.length; i++) {
   }
 }
 
-// Helper: extract candidate screens from context/app-description.md
 function getKnownScreensFromContext() {
   if (!fs.existsSync(APP_DESC)) return [];
   const content = fs.readFileSync(APP_DESC, 'utf8');
@@ -79,7 +70,6 @@ if (!screenInput) {
   process.exit(1);
 }
 
-// Normalize screen name & paths
 let screenName = screenInput;
 let targetDir = POM_DIR;
 let relPath = `${screenName}.pom.js`;
@@ -94,7 +84,6 @@ if (screenInput.includes('/')) {
 
 const targetFile = path.join(targetDir, `${screenName}.pom.js`);
 
-// camelCase screen variable: e.g. "home" -> "homeScreen", "article_detail" -> "articleDetailScreen"
 function toCamelCase(str) {
   return str
     .replace(/[^a-zA-Z0-9]+(.)/g, (_, chr) => chr.toUpperCase())
@@ -107,34 +96,32 @@ if (!outputJsonOnly) {
   console.log(`\n🔍 Inspecting active device screen for [${screenName}]...`);
 }
 
-// Execute maestro-runner hierarchy
+// Execute official maestro hierarchy
 let hierarchyJson;
 try {
-  let cmd = `MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --platform ${platform} --driver ${driver} hierarchy`;
+  let cmd = `maestro --platform ${platform}`;
   if (device) cmd += ` --device ${device}`;
-  
+  cmd += ' hierarchy';
+
   const stdout = execSync(cmd, { cwd: ROOT_DIR, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-  
   const jsonStart = stdout.indexOf('{');
   if (jsonStart === -1) {
-    throw new Error('Failed to find JSON in maestro-runner output:\n' + stdout);
+    throw new Error('Failed to find JSON in maestro hierarchy output:\n' + stdout);
   }
   hierarchyJson = JSON.parse(stdout.slice(jsonStart));
 } catch (err) {
   console.error('\n❌ Failed to inspect screen hierarchy:');
   console.error(err.message || err);
-  console.error('\nEnsure an Android emulator or device is running (check `adb devices`).');
+  console.error('\nEnsure an Android emulator or device is running (check `adb devices` or `maestro list-devices`).');
   process.exit(1);
 }
 
-// System UI prefixes to completely prune (aborts node and all children)
 const SYSTEM_UI_PREFIXES = [
   'com.android.systemui',
   'android:id/statusBarBackground',
   'android:id/navigationBarBackground'
 ];
 
-// Structural layout containers and internal sub-elements to ignore
 const IGNORED_CONTAINER_PATTERNS = [
   'action_bar_root',
   'fragment_container',
@@ -148,10 +135,8 @@ const IGNORED_CONTAINER_PATTERNS = [
   'android:id/content'
 ];
 
-// Reject dynamic dates, times, or clock timestamps
 const DYNAMIC_DATE_REGEX = /(today|yesterday|tomorrow|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b|\b\d{4}\b|\d{1,2}:\d{2})/i;
 
-// Whitelisted UI actions and static section labels for text-based locators
 const KNOWN_UI_KEYWORDS = new Set([
   'save', 'share', 'more options', 'skip', 'continue', 'next', 'done',
   'cancel', 'search', 'back', 'close', 'got it', 'ok', 'learn more',
@@ -159,19 +144,18 @@ const KNOWN_UI_KEYWORDS = new Set([
   'sign in', 'log in', 'submit', 'confirm', 'retry', 'home'
 ]);
 
-// Helper: collect meaningful interactive & anchor elements
 const harvestedElements = [];
 const seenValues = new Set();
-const capturedIds = new Set();
 
 function traverse(node, insideCapturedParent = false) {
   if (!node) return;
 
-  const rawId = node.id || null;
-  const rawText = (node.text && typeof node.text === 'string') ? node.text.trim() : null;
-  const nodeType = node.type || '';
+  const attrs = node.attributes || {};
+  const rawId = node.id || attrs['resource-id'] || null;
+  const rawTextCandidate = node.text || attrs.text || attrs.accessibilityText || null;
+  const rawText = (rawTextCandidate && typeof rawTextCandidate === 'string') ? rawTextCandidate.trim() : null;
+  const nodeType = node.type || attrs.class || '';
 
-  // 1. Completely prune System UI subtrees (Clock, Battery, Wifi, OS Nav Bar)
   if (rawId && SYSTEM_UI_PREFIXES.some(prefix => rawId.startsWith(prefix))) {
     return;
   }
@@ -181,32 +165,26 @@ function traverse(node, insideCapturedParent = false) {
 
   let capturedThisNode = false;
 
-  // 2. Check Resource ID (Priority 1)
   if (rawId) {
     const isIgnored = IGNORED_CONTAINER_PATTERNS.some(pat => rawId.includes(pat));
-    if (!isIgnored) {
-      if (!seenValues.has(rawId)) {
-        seenValues.add(rawId);
-        capturedIds.add(rawId);
-        harvestedElements.push({
-          selector: rawId,
-          isId: true,
-          type: nodeType,
-          text: rawText
-        });
-        capturedThisNode = true;
-      }
+    if (!isIgnored && !seenValues.has(rawId)) {
+      seenValues.add(rawId);
+      harvestedElements.push({
+        selector: rawId,
+        isId: true,
+        type: nodeType,
+        text: rawText
+      });
+      capturedThisNode = true;
     }
   }
 
-  // 3. Text fallback (Priority 2): ONLY if not inside a parent already captured by ID
   if (!capturedThisNode && !insideCapturedParent && rawText) {
     const lower = rawText.toLowerCase();
     const hasPunctuation = /[.,;?!"()—]/.test(rawText);
     const hasDate = DYNAMIC_DATE_REGEX.test(rawText);
     const hasHtml = rawText.includes('<') || rawText.includes('>');
 
-    // Only accept known static UI controls or action words (avoids dynamic article headlines / dates)
     if (!hasHtml && !hasDate && !hasPunctuation && KNOWN_UI_KEYWORDS.has(lower)) {
       if (!seenValues.has(rawText)) {
         seenValues.add(rawText);
@@ -220,7 +198,6 @@ function traverse(node, insideCapturedParent = false) {
     }
   }
 
-  // Traverse children
   if (node.children && Array.isArray(node.children)) {
     const passInside = insideCapturedParent || capturedThisNode;
     node.children.forEach(c => traverse(c, passInside));
@@ -239,16 +216,13 @@ if (harvestedElements.length === 0) {
   process.exit(0);
 }
 
-// Naming generator for new keys
 function generateKeyName(item, existingKeys) {
   let base = '';
-  
+
   if (item.isId) {
-    // Extract entry name after colon/slash: e.g. "com.example.app:id/nav_tab_home" -> "nav_tab_home"
     let clean = item.selector.includes(':id/') ? item.selector.split(':id/')[1] : item.selector;
-    // Remove redundant common prefixes
     clean = clean.replace(/^(btn_|button_|input_|edit_|txt_|text_|nav_|tab_|view_|item_)/, '');
-    
+
     if (item.selector.includes('nav_') || item.selector.includes('tab_')) {
       base = 'nav' + toCamelCase(clean).replace(/^[a-z]/, c => c.toUpperCase());
     } else if (item.selector.includes('btn_') || item.selector.includes('button_') || item.type.includes('Button')) {
@@ -261,10 +235,9 @@ function generateKeyName(item, existingKeys) {
       base = toCamelCase(clean);
     }
   } else {
-    // Text fallback
     const cleanText = item.selector.replace(/[^a-zA-Z0-9 ]/g, '').trim();
     const words = cleanText.split(/\s+/).slice(0, 3).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('');
-    
+
     if (/^(save|share|submit|ok|cancel|continue|skip|next|back|close|search|done|moreoptions|en)$/i.test(words)) {
       base = 'btn' + words;
     } else {
@@ -274,7 +247,6 @@ function generateKeyName(item, existingKeys) {
 
   if (!base || base.length < 2) base = 'element';
 
-  // Ensure uniqueness
   let candidate = base;
   let counter = 2;
   while (existingKeys.has(candidate)) {
@@ -284,18 +256,14 @@ function generateKeyName(item, existingKeys) {
   return candidate;
 }
 
-// Handle Scenario 1 (Fresh 0) vs Scenario 2 (Existing POM merge)
 let pomLocators = {};
-let existingContent = '';
 let isUpdate = false;
 const existingKeysSet = new Set();
 const existingValuesSet = new Set();
 
 if (fs.existsSync(targetFile) && !forceClean) {
   isUpdate = true;
-  existingContent = fs.readFileSync(targetFile, 'utf8');
-  
-  // Extract existing key-value pairs via regex to preserve existing keys 100%
+  const existingContent = fs.readFileSync(targetFile, 'utf8');
   const entryRegex = /^\s*([a-zA-Z0-9_]+)\s*:\s*["'`](.*)["'`]\s*,?/gm;
   let match;
   while ((match = entryRegex.exec(existingContent)) !== null) {
@@ -307,37 +275,31 @@ if (fs.existsSync(targetFile) && !forceClean) {
   }
 }
 
-// Add newly discovered elements
 let addedCount = 0;
 for (const item of harvestedElements) {
-  if (existingValuesSet.has(item.selector)) {
-    continue; // Already mapped
-  }
+  if (existingValuesSet.has(item.selector)) continue;
   const key = generateKeyName(item, existingKeysSet);
   pomLocators[key] = item.selector;
   existingValuesSet.add(item.selector);
   addedCount++;
 }
 
-// Format POM JS file content
 const lines = [];
 lines.push(`// pom/${relPath}`);
 lines.push(`// Screen Locators for [${screenName}]`);
-lines.push(`// Auto-generated & maintained by scripts/harvest-pom.js`);
+lines.push('// Auto-generated & maintained by scripts/harvest-pom.js');
 lines.push('');
 lines.push(`output.${screenObjectVar} = {`);
 
 const keys = Object.keys(pomLocators);
 keys.forEach((key, idx) => {
-  const isLast = idx === keys.length - 1;
-  const comma = isLast ? '' : ',';
+  const comma = idx === keys.length - 1 ? '' : ',';
   lines.push(`  ${key}: "${pomLocators[key]}"${comma}`);
 });
 
 lines.push('};');
 lines.push('');
 
-// Write POM file
 if (!fs.existsSync(targetDir)) {
   fs.mkdirSync(targetDir, { recursive: true });
 }
@@ -351,22 +313,34 @@ if (isUpdate) {
   console.log(`\n✅ Generated clean POM: pom/${relPath} (${keys.length} locators)`);
 }
 
-// Auto-register in pom/index.js if not already present
-const importStmt = `require("./${relPath}");`;
-let indexContent = fs.existsSync(INDEX_JS) ? fs.readFileSync(INDEX_JS, 'utf8') : '';
-
-if (!indexContent.includes(importStmt)) {
-  if (!indexContent.trim()) {
-    indexContent = '// pom/index.js\n// Central POM Locator Aggregator\n\n';
-  } else if (!indexContent.endsWith('\n')) {
-    indexContent += '\n';
+// Rebuild pom/index.js as a GraalJS-compatible bundle of all pom/**/*.pom.js files
+// (Official Maestro CLI runs GraalJS without CommonJS require()).
+function rebuildPomIndex() {
+  const pomFiles = [];
+  function walk(dir) {
+    for (const entry of fs.readdirSync(dir).sort()) {
+      const full = path.join(dir, entry);
+      if (fs.statSync(full).isDirectory()) walk(full);
+      else if (entry.endsWith('.pom.js')) pomFiles.push(full);
+    }
   }
-  indexContent += `${importStmt}\n`;
-  fs.writeFileSync(INDEX_JS, indexContent, 'utf8');
-  console.log(`✅ Auto-registered in pom/index.js: ${importStmt}`);
-} else {
-  console.log(`ℹ️  Already registered in pom/index.js`);
+  walk(POM_DIR);
+
+  const chunks = [
+    '// pom/index.js',
+    '// Central Page Object Model (POM) Locator Aggregator',
+    '// Auto-generated bundle of all pom/*.pom.js files for official Maestro GraalJS runtime.',
+    ''
+  ];
+  for (const file of pomFiles) {
+    chunks.push(fs.readFileSync(file, 'utf8').trim());
+    chunks.push('');
+  }
+  fs.writeFileSync(INDEX_JS, chunks.join('\n'), 'utf8');
+  console.log(`✅ Updated pom/index.js bundle (${pomFiles.length} POM file(s))`);
 }
+
+rebuildPomIndex();
 
 console.log(`\n✨ Screen [${screenName}] is ready to be consumed in steps/ and tests/ via:`);
 console.log(`   \${output.${screenObjectVar}.<locatorName>}\n`);

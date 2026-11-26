@@ -1,3 +1,5 @@
+appId: ${APP_ID}
+---
 # Reusable Action Step: Search Invalid Query, Verify Empty State, and Clear Input
 - runScript: ../../pom/home.pom.js
 - runScript: ../../pom/search.pom.js

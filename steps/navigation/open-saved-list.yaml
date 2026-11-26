@@ -1,3 +1,5 @@
+appId: ${APP_ID}
+---
 # Reusable Action Step: Navigate to Saved Articles List
 - runScript: ../../pom/article_detail.pom.js
 - runScript: ../../pom/search.pom.js

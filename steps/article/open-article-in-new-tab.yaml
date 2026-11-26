@@ -1,3 +1,5 @@
+appId: ${APP_ID}
+---
 # Reusable Action Step: Open New Article Tab and Search Target Article
 - runScript: ../../pom/article_detail.pom.js
 - runScript: ../../pom/search.pom.js

@@ -1,6 +1,6 @@
 ---
 name: generate-test
-description: Generate, maintain, and debug mobile end-to-end UI tests following the 3-tier architecture (POM locators, reusable steps, declarative test scenarios) using maestro-runner.
+description: Generate, maintain, and debug mobile end-to-end UI tests following the 3-tier architecture (POM locators, reusable steps, declarative test scenarios) using the official Maestro CLI.
 ---
 
 # generate-test: Mobile E2E Test Generator
@@ -134,15 +134,18 @@ commandTimeout: 10000
 
 ## Step 6: Pre-flight Lint & Targeted Execution (Zero Waste Policy)
 
-1. **Pre-flight Lint:** Lint the target test file and any newly created/modified step files:
+1. **Pre-flight Syntax Check:** Validate the target test file and any newly created/modified step files:
    ```bash
-   MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner lint tests/<feature>/<scenario-name>.yaml
+   maestro check-syntax tests/<feature>/<scenario-name>.yaml
    ```
 
 2. **Targeted Execution (Single-Run Scope):**
    * Execute **ONLY** the newly created test file:
      ```bash
-     MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --env-file .env --driver uiautomator2 test tests/<feature>/<scenario-name>.yaml
+     ./scripts/run.sh --env staging tests/<feature>/<scenario-name>.yaml
+     # Or directly via maestro CLI:
+     set -a; source .env; set +a
+     MAESTRO_CLI_NO_ANALYTICS=1 maestro test -e APP_ID="$APP_ID" -e APP_ENV="$APP_ENV" tests/<feature>/<scenario-name>.yaml
      ```
    * **Scope Restriction:** NEVER execute `tests/` (the entire suite) or unrelated test files. Only re-run an existing test if a shared step (`steps/`), POM (`pom/`), or fixture (`data/`) that it directly imports was modified.
 

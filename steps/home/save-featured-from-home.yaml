@@ -1,3 +1,5 @@
+appId: ${APP_ID}
+---
 # Reusable Action Step: Save Featured Article Directly from Home Feed
 - runScript: ../../pom/home.pom.js
 - runScript: ../../pom/article_detail.pom.js

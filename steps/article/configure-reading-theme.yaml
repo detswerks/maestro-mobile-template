@@ -1,3 +1,5 @@
+appId: ${APP_ID}
+---
 # Reusable Action Step: Configure Article Reading Theme & Text Size
 - runScript: ../../pom/article_detail.pom.js
 
