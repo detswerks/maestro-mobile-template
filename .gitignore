@@ -1,0 +1,20 @@
+# Node dependencies
+node_modules/
+package-lock.json
+
+# Environment variables and secrets
+.env
+*.local
+
+# Maestro test outputs and reports
+reports/
+*.mp4
+*.diff.png
+
+# System & IDE files
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+app-alpha-universal-release.apk
