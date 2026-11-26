@@ -1,0 +1,43 @@
+# Reusable Action Step: Search Query and Open Article Result
+- runScript: ../../pom/home.pom.js
+- runScript: ../../pom/search.pom.js
+- runScript: ../../pom/article_detail.pom.js
+
+# Navigate to Search Tab
+- tapOn:
+    id: ${output.homeScreen.navTabSearch}
+
+# Dismiss optional "A Faster way to Search" widget prompt if shown on first visit
+- runFlow:
+    when:
+      visible: ${output.searchScreen.btnCloseWidgetPrompt}
+    commands:
+      - tapOn: ${output.searchScreen.btnCloseWidgetPrompt}
+
+# Open Search Input View (tapping Search tab a second time jumps straight to search_src_text)
+- runFlow:
+    when:
+      visible:
+        id: ${output.searchScreen.inputSearchCard}
+    commands:
+      - tapOn:
+          id: ${output.searchScreen.inputSearchCard}
+
+# Input Search Query with Field Hygiene
+- tapOn:
+    id: ${output.searchScreen.inputSearchSrcText}
+- eraseText
+- inputText: ${query}
+- hideKeyboard
+
+# Wait for Search Results and Open Target Article (below search toolbar so it never matches search_src_text)
+- assertVisible:
+    id: ${output.searchScreen.inputFragmentSearchResults}
+- tapOn:
+    text: ${articleTitleRegex}
+    below:
+      id: ${output.searchScreen.inputSearchToolbar}
+
+# Anchor verification: Confirm arrival on Article Detail screen
+- assertVisible:
+    id: ${output.articleDetailScreen.pageSave}

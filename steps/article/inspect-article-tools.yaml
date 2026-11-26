@@ -1,0 +1,33 @@
+# Reusable Action Step: Inspect In-Article Find and Table of Contents
+- runScript: ../../pom/article_detail.pom.js
+
+# Dismiss optional "Customize your toolbar" balloon tooltip if shown
+- runFlow:
+    when:
+      visible:
+        id: ${output.articleDetailScreen.btnButtonView}
+    commands:
+      - tapOn:
+          id: ${output.articleDetailScreen.btnButtonView}
+
+# 1. Exercise "Find in article"
+- tapOn:
+    id: ${output.articleDetailScreen.pageFindInArticle}
+- tapOn:
+    id: ${output.articleDetailScreen.inputFindInPage}
+- eraseText
+- inputText: ${findKeyword}
+- hideKeyboard
+- assertVisible:
+    id: ${output.articleDetailScreen.findInPageMatch}
+- tapOn:
+    id: ${output.articleDetailScreen.actionModeCloseButton}
+
+# 2. Exercise "Contents" drawer and jump to target section
+- tapOn:
+    id: ${output.articleDetailScreen.pageContents}
+- assertVisible:
+    id: ${output.articleDetailScreen.tocList}
+- tapOn: ${sectionTitle}
+- assertNotVisible:
+    id: ${output.articleDetailScreen.tocList}

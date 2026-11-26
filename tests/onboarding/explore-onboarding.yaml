@@ -1,0 +1,26 @@
+appId: ${APP_ID}
+tags:
+  - regression
+  - onboarding
+commandTimeout: 10000
+---
+# 1. Load Data & POM Locators
+- runScript: ../../data/onboarding-data.js
+- runScript: ../../pom/index.js
+
+# 2. Mandatory Clean State Launch (Guarantees Test Isolation)
+- launchApp:
+    clearState: true
+
+# 3. Explore Full Onboarding Content Without Skipping
+- runFlow:
+    file: ../../steps/onboarding/complete-onboarding.yaml
+    env:
+      interest: ${output.onboardingData.interestTopic}
+
+# 4. Assertions via POM Locators (Verify Arrival on Home Screen)
+- assertVisible:
+    id: ${output.homeScreen.navTabHome}
+- assertVisible: ${output.homeScreen.tabCommunity}
+- assertVisible: ${output.homeScreen.tabForYou}
+- assertVisible: ${output.homeScreen.headerFeaturedArticle}

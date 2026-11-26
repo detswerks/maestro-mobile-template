@@ -153,10 +153,10 @@ const DYNAMIC_DATE_REGEX = /(today|yesterday|tomorrow|\b(jan|feb|mar|apr|may|jun
 
 // Whitelisted UI actions and static section labels for text-based locators
 const KNOWN_UI_KEYWORDS = new Set([
-  'save', 'share', 'more options', 'skip', 'continue', 'next', 'done', 
-  'cancel', 'search', 'back', 'close', 'got it', 'ok', 'learn more', 
-  'add', 'explore', 'settings', 'view', 'community', 'for you', 
-  'featured article', 'en', 'edit', 'delete', 'apply', 'filter', 'sort'
+  'save', 'share', 'more options', 'skip', 'continue', 'next', 'done',
+  'cancel', 'search', 'back', 'close', 'got it', 'ok', 'learn more',
+  'add', 'settings', 'view', 'edit', 'delete', 'apply', 'filter', 'sort',
+  'sign in', 'log in', 'submit', 'confirm', 'retry', 'home'
 ]);
 
 // Helper: collect meaningful interactive & anchor elements
@@ -244,7 +244,7 @@ function generateKeyName(item, existingKeys) {
   let base = '';
   
   if (item.isId) {
-    // Extract entry name after colon/slash: e.g. "org.wikipedia.alpha:id/nav_tab_home" -> "nav_tab_home"
+    // Extract entry name after colon/slash: e.g. "com.example.app:id/nav_tab_home" -> "nav_tab_home"
     let clean = item.selector.includes(':id/') ? item.selector.split(':id/')[1] : item.selector;
     // Remove redundant common prefixes
     clean = clean.replace(/^(btn_|button_|input_|edit_|txt_|text_|nav_|tab_|view_|item_)/, '');

@@ -1,0 +1,17 @@
+# Reusable Action Step: Save Featured Article Directly from Home Feed
+- runScript: ../../pom/home.pom.js
+- runScript: ../../pom/article_detail.pom.js
+
+# Verify Featured article section on Home and tap its Save control
+- assertVisible: ${output.homeScreen.headerFeaturedArticle}
+- tapOn:
+    text: ${output.homeScreen.btnSave}
+    below: ${output.homeScreen.headerFeaturedArticle}
+
+# Dismiss reading list prompt if opened, or verify Saved state
+- runFlow:
+    when:
+      visible:
+        id: ${output.articleDetailScreen.designBottomSheet}
+    commands:
+      - back

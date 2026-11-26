@@ -1,0 +1,29 @@
+# Reusable Action Step: Open New Article Tab and Search Target Article
+- runScript: ../../pom/article_detail.pom.js
+- runScript: ../../pom/search.pom.js
+
+# Open Tabs view and create a new tab
+- tapOn:
+    id: ${output.articleDetailScreen.btnPageToolbarButtonTabs}
+- assertVisible:
+    id: ${output.articleDetailScreen.tabRecyclerView}
+- tapOn: ${output.articleDetailScreen.btnNewTab}
+
+# Search and open target article inside the new tab
+- tapOn:
+    id: ${output.articleDetailScreen.btnPageToolbarButtonSearch}
+- tapOn:
+    id: ${output.searchScreen.inputSearchSrcText}
+- eraseText
+- inputText: ${query}
+- hideKeyboard
+- assertVisible:
+    id: ${output.searchScreen.inputFragmentSearchResults}
+- tapOn:
+    text: ${articleTitleRegex}
+    below:
+      id: ${output.searchScreen.inputSearchToolbar}
+
+# Verify arrived on Article Detail in new tab
+- assertVisible:
+    id: ${output.articleDetailScreen.pageSave}

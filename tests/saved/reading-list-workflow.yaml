@@ -1,0 +1,78 @@
+appId: ${APP_ID}
+tags:
+  - regression
+  - saved
+  - search
+  - article
+commandTimeout: 10000
+---
+# 1. Load Data & POM Locators
+- runScript: ../../data/reading-list-data.js
+- runScript: ../../pom/index.js
+
+# 2. Mandatory Clean State Launch (Guarantees Test Isolation)
+- launchApp:
+    clearState: true
+
+# 3. Dismiss Onboarding & Explore Home Feed Tabs
+- runFlow: ../../steps/onboarding/dismiss-onboarding.yaml
+- runFlow: ../../steps/home/explore-home-tabs.yaml
+
+# 4. Search & Open Primary Article, Exercise Find + Table of Contents, and Save to Custom List
+- runFlow:
+    file: ../../steps/search/search-and-open-article.yaml
+    env:
+      query: ${output.readingListData.primaryQuery}
+      articleTitleRegex: ${output.readingListData.primaryArticleRegex}
+- runFlow:
+    file: ../../steps/article/inspect-article-tools.yaml
+    env:
+      findKeyword: ${output.readingListData.findKeyword}
+      sectionTitle: ${output.readingListData.tocSection}
+- runFlow:
+    file: ../../steps/article/save-to-new-reading-list.yaml
+    env:
+      listName: ${output.readingListData.readingListName}
+      listDescription: ${output.readingListData.readingListDescription}
+
+# 5. Back Out to Search Tab (back closes article even when top toolbar is scrolled/hidden), Search & Save Secondary Article
+- back
+- tapOn: ${output.searchScreen.btnNavigateUp}
+- runFlow:
+    file: ../../steps/search/search-and-open-article.yaml
+    env:
+      query: ${output.readingListData.secondaryQuery}
+      articleTitleRegex: ${output.readingListData.secondaryArticleRegex}
+- runFlow: ../../steps/article/save-current-article.yaml
+
+# 6. Open Saved Tab & Verify Both Articles + Filter Behavior
+- runFlow: ../../steps/navigation/open-saved-list.yaml
+- assertVisible: ${output.readingListData.primaryArticleRegex}
+- assertVisible: ${output.readingListData.secondaryArticleRegex}
+- runFlow:
+    file: ../../steps/saved/filter-saved-articles.yaml
+    env:
+      filterKeyword: ${output.readingListData.filterKeyword}
+      expectedVisibleRegex: ${output.readingListData.secondaryArticleRegex}
+      expectedHiddenRegex: ${output.readingListData.primaryArticleRegex}
+
+# 7. Verify Custom Reading List, Open Primary Article from It, and Unsave
+- tapOn: ${output.savedListScreen.tabReadingLists}
+- assertVisible: ${output.readingListData.readingListName}
+- tapOn: ${output.readingListData.readingListName}
+- runFlow:
+    when:
+      visible:
+        id: ${output.savedListScreen.btnBalloonGotIt}
+    commands:
+      - tapOn:
+          id: ${output.savedListScreen.btnBalloonGotIt}
+- assertVisible: ${output.readingListData.primaryArticleRegex}
+- tapOn: ${output.readingListData.primaryArticleRegex}
+- runFlow: ../../steps/article/unsave-current-article.yaml
+
+# 8. Return to Saved All Articles & Verify Primary Removed while Secondary Remains
+- runFlow: ../../steps/navigation/open-saved-list.yaml
+- tapOn: ${output.savedListScreen.tabAllArticles}
+- assertNotVisible: ${output.readingListData.primaryArticleRegex}
+- assertVisible: ${output.readingListData.secondaryArticleRegex}

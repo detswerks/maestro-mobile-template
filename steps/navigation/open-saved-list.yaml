@@ -1,30 +1,35 @@
-# Reusable Action Step: Open Saved List Screen
-# Navigates to the Saved tab from anywhere in the app
-
-- runScript: ../../pom/home.pom.js
-- runScript: ../../pom/saved_list.pom.js
+# Reusable Action Step: Navigate to Saved Articles List
 - runScript: ../../pom/article_detail.pom.js
 - runScript: ../../pom/search.pom.js
+- runScript: ../../pom/saved_list.pom.js
 
-# If on Article Detail screen, navigate up to exit article
-- runFlow:
-    when:
-      visible: ${output.articleDetailScreen.btnNavigateUp}
-    commands:
-      - tapOn: ${output.articleDetailScreen.btnNavigateUp}
-
-# If in search mode, navigate up to return to main tabs
+# Back out of Article Detail if currently open (use back since top toolbar auto-hides on scroll)
 - runFlow:
     when:
       visible:
-        id: ${output.searchScreen.btnSearchClose}
+        id: ${output.articleDetailScreen.pageSave}
+    commands:
+      - back
+
+# Back out of Custom Reading List Detail if currently open
+- runFlow:
+    when:
+      visible:
+        id: ${output.savedListScreen.readingListToolbar}
+    commands:
+      - tapOn: ${output.savedListScreen.btnNavigateUp}
+
+# Back out of Active Search Input if currently open
+- runFlow:
+    when:
+      visible:
+        id: ${output.searchScreen.inputSearchSrcText}
     commands:
       - tapOn: ${output.searchScreen.btnNavigateUp}
 
-# Tap the Saved tab on bottom navigation
+# Tap Saved Bottom Navigation Tab
 - tapOn:
-    id: ${output.homeScreen.navTabReadingLists}
+    id: ${output.savedListScreen.navTabReadingLists}
 
-# Anchor verification: Confirm arrival on Saved screen
-- assertVisible:
-    id: ${output.savedListScreen.mainToolbar}
+# Anchor verification: Confirm arrival on Saved Articles screen
+- assertVisible: ${output.savedListScreen.tabAllArticles}

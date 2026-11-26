@@ -1,0 +1,38 @@
+# Reusable Action Step: Explore & Complete Full Onboarding Flow
+- runScript: ../../pom/onboarding.pom.js
+- runScript: ../../pom/home.pom.js
+
+# Slide 1: Welcome
+- assertVisible: ${output.onboardingScreen.headerSlide1}
+- tapOn: ${output.onboardingScreen.btnForward}
+
+# Slide 2: Data & Privacy
+- assertVisible: ${output.onboardingScreen.headerSlide2}
+- tapOn: ${output.onboardingScreen.btnForward}
+
+# Slide 3: Languages
+- assertVisible: ${output.onboardingScreen.headerSlide3}
+- assertVisible: ${output.onboardingScreen.txtEnglishLanguage}
+- assertVisible: ${output.onboardingScreen.btnAddOrEditLanguages}
+- tapOn: ${output.onboardingScreen.btnForward}
+
+# Slide 4: Follow your curiosity (proceed with Next, do not Skip)
+- assertVisible: ${output.onboardingScreen.headerSlide4}
+- tapOn: ${output.onboardingScreen.btnNext}
+
+# Slide 5: Topic interest selection (select parameterized interest, then Next)
+- assertVisible: ${output.onboardingScreen.headerSlide5}
+- assertVisible: ${output.onboardingScreen.txtSelectAtLeastOneInterest}
+- tapOn: ${interest}
+- assertVisible: ${output.onboardingScreen.btnDeselectAll}
+- tapOn: ${output.onboardingScreen.btnNext}
+
+# Slide 6: Feed content preference (verify options, then Next)
+- assertVisible: ${output.onboardingScreen.headerSlide6}
+- assertVisible: ${output.onboardingScreen.radioCommunityContent}
+- assertVisible: ${output.onboardingScreen.radioPersonalizedContent}
+- tapOn: ${output.onboardingScreen.btnNext}
+
+# Anchor verification: Confirm arrival on Homepage
+- assertVisible:
+    id: ${output.homeScreen.navTabHome}

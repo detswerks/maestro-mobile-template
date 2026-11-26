@@ -1,0 +1,50 @@
+appId: ${APP_ID}
+tags:
+  - regression
+  - article
+commandTimeout: 10000
+---
+# 1. Load Data & POM Locators
+- runScript: ../../data/article-data.js
+- runScript: ../../pom/index.js
+
+# 2. Mandatory Clean State Launch
+- launchApp:
+    clearState: true
+
+# 3. Dismiss Onboarding & Open First Article
+- runFlow: ../../steps/onboarding/dismiss-onboarding.yaml
+- runFlow:
+    file: ../../steps/search/search-and-open-article.yaml
+    env:
+      query: ${output.articleData.firstQuery}
+      articleTitleRegex: ${output.articleData.firstArticleRegex}
+
+# 4. Customize Reading Theme & Font Size
+- runFlow:
+    file: ../../steps/article/configure-reading-theme.yaml
+    env:
+      defaultTextSizeLabel: ${output.articleData.defaultTextSizeLabel}
+
+# 5. Open Second Article in a New Tab & Verify Multi-Tab State
+- runFlow:
+    file: ../../steps/article/open-article-in-new-tab.yaml
+    env:
+      query: ${output.articleData.secondQuery}
+      articleTitleRegex: ${output.articleData.secondArticleRegex}
+
+# 6. Verify Both Tabs Exist and Switch Back to First Article Tab
+- assertVisible:
+    text: ${output.articleData.expectedTwoTabsCount}
+- tapOn:
+    id: ${output.articleDetailScreen.btnPageToolbarButtonTabs}
+- assertVisible:
+    id: ${output.articleDetailScreen.tabRecyclerView}
+- assertVisible:
+    text: ${output.articleData.firstArticleRegex}
+- assertVisible:
+    text: ${output.articleData.secondArticleRegex}
+- tapOn:
+    text: ${output.articleData.firstArticleRegex}
+- assertVisible:
+    id: ${output.articleDetailScreen.pageSave}

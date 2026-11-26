@@ -11,10 +11,10 @@ Use this skill when asked to scan a screen, harvest locators for a new page, or 
 
 ## Core Principles & Hybrid Workflow
 
-This skill pairs deterministic script filtering with intelligent agent curation:
+This skill pairs deterministic script automation with agent curation (following `.agents/AGENTS.md` Rules 1, 2, and 5):
 
-1. **Low-Level Extraction:** The script `node scripts/harvest-pom.js <screen> --json` queries `maestro-runner hierarchy` and strips 90% of raw UI noise (status bars, layout containers, dynamic dates) at **zero LLM token cost**.
-2. **High-Level Agent Curation:** The AI agent reviews the candidate elements, selects the essential interactive and anchor controls, categorizes them (Happy Path vs. Deep Test), standardizes variable names, and writes the final POM file.
+1. **Automated Extraction & Merge (`npm run pom:scan <screen>`):** Runs `scripts/harvest-pom.js <screen>`, which queries `maestro-runner hierarchy`, strips 90% of raw UI noise, non-destructively writes/updates `pom/<screen>.pom.js`, and auto-registers `require("./<screen>.pom.js");` in `pom/index.js`.
+2. **Agent Curation & Verification:** Review the generated `pom/<screen>.pom.js` (or pass `--json` first to inspect raw candidates), refine semantic variable names, and capture any multi-slide or text-anchor locators if needed.
 
 ---
 
@@ -23,29 +23,33 @@ This skill pairs deterministic script filtering with intelligent agent curation:
 ### 1. Navigation & Clarification Check (Rule 5 Gate)
 Before scanning:
 * Check the connected device display. Is the target screen currently visible?
-* If the screen is **NOT visible** and you do not know how to reach it:
-  * **STOP immediately and ask the user:**
-    > *"I am ready to scan `[screen]`, but it is not currently open on the device. Could you navigate to it on the phone or explain the steps to reach it?"*
+* If the screen is **NOT visible**, follow **Rule 5** in `.agents/AGENTS.md` (check `context/test-flows.md` / `steps/` first; stop and ask the user if no route is documented).
 * If the screen is a **Cold-Start / Fresh-Install screen** (e.g., `onboarding`):
-  * Reset the app to bring up the first launch state:
+  * Reset and launch the app cleanly using `.env`:
     ```bash
-    adb shell pm clear ${APP_ID}
-    adb shell monkey -p ${APP_ID} -c android.intent.category.LAUNCHER 1
+    # Android (reads APP_ID from .env)
+    set -a; source .env; set +a
+    adb shell pm clear "$APP_ID"
+    adb shell monkey -p "$APP_ID" -c android.intent.category.LAUNCHER 1
     ```
+    *(Or on iOS simulator / cross-platform, trigger a flow with `- launchApp: { clearState: true }`.)*
 
 ---
 
-### 2. Harvest Pre-Filtered Candidate Elements
-Run the harvester in JSON mode to collect clean candidate elements:
+### 2. Harvest & Generate/Update the POM
+Run the POM harvester directly (automatically creates/merges `pom/<screen>.pom.js` and registers it in `pom/index.js`):
 
 ```bash
-node scripts/harvest-pom.js <screen_name> --json
+npm run pom:scan <screen_name>
+# Optional flags:
+# npm run pom:scan <screen_name> -- --clean     # Rebuild POM from scratch
+# node scripts/harvest-pom.js <screen_name> --json  # Inspect raw candidate JSON only
 ```
 
-This returns an array of candidates:
+Raw `--json` candidate output format:
 ```json
 [
-  { "selector": "org.wikipedia.alpha:id/nav_tab_home", "isId": true, "type": "FrameLayout" },
+  { "selector": "com.example.app:id/nav_tab_home", "isId": true, "type": "FrameLayout" },
   { "selector": "Save", "isId": false, "type": "View" }
 ]
 ```
@@ -55,51 +59,50 @@ This returns an array of candidates:
 ### 3. Multi-Step / Carousel Handling (Happy Path vs. Deep Test)
 If the screen is a multi-slide carousel (such as **Onboarding**):
 1. Harvest candidates from **Slide 1**.
-2. Tap the forward control (e.g. `tapOn: "Continue"` or swipe) to advance to **Slide 2**.
-3. Harvest candidates from **Slide 2**, repeat for all slides.
-4. Ensure the POM includes locators for both test strategies:
-   * **Happy Path (Bypass / Setup):** `btnSkip`, `btnContinue`, `btnGetStarted`
-   * **Deep Test (Feature Verification):** Individual slide headers, language add buttons, privacy toggles.
+2. Advance to **Slide 2** (`tapOn` forward control or swipe) and re-run `npm run pom:scan <screen_name>` (non-destructive merge preserves Slide 1 keys).
+3. Repeat for all slides and ensure the POM covers both test strategies:
+   * **Happy Path (Bypass / Setup):** `btnSkip`, `btnContinue`, `btnDone`
+   * **Deep Test (Feature Verification):** Individual slide headers, secondary buttons, toggles.
 
 ---
 
-### 4. Curate, Standardize & Write the POM
-Write the locator dictionary to `pom/<screen>.pom.js`:
+### 4. Curate & Standardize Keys (`pom/<screen>.pom.js`)
+Review and refine keys in `pom/<screen>.pom.js` if auto-generated names need clearer semantics:
 * Structure:
   ```javascript
   // pom/<screen>.pom.js
   // Screen Locators for [<screen>]
-  
+
   output.<screenName>Screen = {
     // Happy Path Controls
-    btnSkip: "org.wikipedia.alpha:id/fragment_onboarding_skip_button",
-    btnContinue: "org.wikipedia.alpha:id/fragment_onboarding_forward_button",
-    btnGetStarted: "org.wikipedia.alpha:id/fragment_onboarding_done_button",
+    btnSkip: "com.example.app:id/btn_onboarding_skip",
+    btnContinue: "com.example.app:id/btn_onboarding_next",
+    btnDone: "com.example.app:id/btn_onboarding_done",
 
     // Deep Test Anchors & Actions
-    headerSlide1: "The Free Encyclopedia",
-    btnAddLanguage: "org.wikipedia.alpha:id/addLanguageButton"
+    headerSlide1: "Welcome to ExampleApp",
+    btnSecondaryAction: "com.example.app:id/btn_learn_more"
   };
   ```
 
 * **Naming Conventions:**
   * Buttons / Clickables: `btn<Action>` (`btnSave`, `btnSkip`)
-  * Input Fields: `input<Field>` (`inputSearch`)
-  * Navigation Tabs: `nav<Tab>` (`navTabHome`, `navTabSearch`)
-  * Text / Headers: `txt<Desc>` or `header<Desc>` (`headerTitle`, `txtFeaturedArticle`)
+  * Input Fields: `input<Field>` (`inputSearch`, `inputEmail`)
+  * Navigation Tabs: `nav<Tab>` (`navTabHome`, `navTabProfile`)
+  * Text / Headers: `txt<Desc>` or `header<Desc>` (`headerTitle`, `txtSubtitle`)
 
-* **Non-Destructive Merge (Scenario 2):**
-  If `pom/<screen>.pom.js` already exists, **never delete or rename existing keys**. Keep all existing keys intact and append newly discovered elements.
+* **Non-Destructive Merge:**
+  If `pom/<screen>.pom.js` already exists, **never delete or rename existing keys** that existing steps/tests may already consume.
 
 ---
 
-### 5. Register in `pom/index.js` & Lint
-Ensure the POM is registered in `pom/index.js`:
+### 5. Verify `pom/index.js` Registration & Lint
+Confirm `pom/index.js` includes the CommonJS `require` import (auto-added by `scripts/harvest-pom.js`):
 ```javascript
-runScript("./<screen>.pom.js");
+require("./<screen>.pom.js");
 ```
 
-Run pre-flight validation:
+Validate existing tests and flows:
 ```bash
 npm run lint
 ```

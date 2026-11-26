@@ -47,14 +47,14 @@ Before writing any code or step files:
      > *2. **Deep Test / Comprehensive Flow:** Thorough verification covering all feature states, slide contents, secondary actions, and edge cases.*
      > *What is the specific end assertion or state you want to verify?"*
 3. **Verify Against Guardrails:**
-   * Cross-reference [context/app-description.md](file:///home/detswerks/projects/maestro-mobile-template/context/app-description.md) to ensure the proposed test does not touch restricted/out-of-scope features (e.g., authentication, restricted tabs).
+   * Cross-reference `context/app-description.md` to ensure the proposed test does not touch restricted/out-of-scope features (e.g., authentication, restricted tabs).
 
 ---
 
 ## Step 1: Pathfinding via Navigation Graph (`context/test-flows.md`)
 
 Before authoring steps or guessing navigation:
-1. **Consult the Living Navigation Graph:** Read [context/test-flows.md](file:///home/detswerks/projects/maestro-mobile-template/context/test-flows.md).
+1. **Consult the Living Navigation Graph:** Read `context/test-flows.md`.
 2. **Find the Shortest Verified Route:** Trace the screen transitions from your starting point (e.g., `Cold Start` or `Home`) to your target destination.
 3. **Check Section 4 (Learned Nuances & Anti-Patterns):** Review known gotchas for each leg of the journey (e.g., carousel slide counts, modal bottom sheet dismissals, Compose text matching) to avoid repeating past errors.
 
@@ -78,8 +78,7 @@ If the scenario performs a composite user action (e.g. login, dismiss onboarding
    * Import POM via `- runScript: ../../pom/<screen>.pom.js`.
    * Reference locators via `${output.<screenName>.<locator>}`.
    * Parameterize dynamic inputs via `${<paramName>}`.
-   * **Exact Regex Anchoring:** For text matching in lists or search results, always use `^${variable}$` to prevent substring collisions.
-   * **Defensive Modals:** Dismiss bottom sheet popups using `- back` to avoid animation touch drops.
+   * Use unambiguous selectors (e.g., exact regex anchors when list items share prefixes) and handle unexpected modals/overlays cleanly based on `context/test-flows.md` or live inspection.
    * Never include `appId`, `tags`, or `launchApp` in a step file.
 
 ---
@@ -120,7 +119,7 @@ commandTimeout: 10000
     clearState: true
 
 # 3. Execution via Reusable Steps (Prerequisites & Feature Actions)
-- runFlow: ../../steps/onboarding/dismiss-onboarding.yaml
+- runFlow: ../../steps/<setup>/<prerequisite>.yaml
 - runFlow:
     file: ../../steps/<feature>/<action>.yaml
     env:
@@ -135,15 +134,15 @@ commandTimeout: 10000
 
 ## Step 6: Pre-flight Lint & Targeted Execution (Zero Waste Policy)
 
-1. **Pre-flight Lint:** Lint only the target file and any directly modified flows:
+1. **Pre-flight Lint:** Lint the target test file and any newly created/modified step files:
    ```bash
-   npx maestro-runner lint tests/<feature>/<scenario-name>.yaml
+   MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner lint tests/<feature>/<scenario-name>.yaml
    ```
 
 2. **Targeted Execution (Single-Run Scope):**
    * Execute **ONLY** the newly created test file:
      ```bash
-     npx maestro-runner --env-file .env --driver uiautomator2 test tests/<feature>/<scenario-name>.yaml
+     MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --env-file .env --driver uiautomator2 test tests/<feature>/<scenario-name>.yaml
      ```
    * **Scope Restriction:** NEVER execute `tests/` (the entire suite) or unrelated test files. Only re-run an existing test if a shared step (`steps/`), POM (`pom/`), or fixture (`data/`) that it directly imports was modified.
 
@@ -156,7 +155,7 @@ commandTimeout: 10000
 ## Step 7: Enhance Living Flow Knowledge (`context/test-flows.md`)
 
 After the test passes successfully:
-1. Open [context/test-flows.md](file:///home/detswerks/projects/maestro-mobile-template/context/test-flows.md).
+1. Open `context/test-flows.md`.
 2. **Update the Mermaid Flowchart:** Add any new screen nodes or transition edges if new screens were mapped.
 3. **Update the Routing Table:** Document the new route, reusable step file, required parameters, and anchor verifications.
 4. **Log Learned Nuances:** Record any discovered quirks (e.g. modal animations, delayed tooltips, container clickability) under Section 4 so future agents never repeat the same mistake.

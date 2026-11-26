@@ -14,6 +14,13 @@ output.savedListScreen = {
   navTabMore: "org.wikipedia.alpha:id/nav_tab_more",
   tabAllArticles: "All articles",
   tabReadingLists: "Reading lists",
-  btnSyncNotNow: "Not now",
-  txtSyncPrompt: "Sync reading lists"
+  promoSyncReadingLists: "Sync reading lists",
+  btnNotNow: "Not now",
+  actionModeCloseButton: "org.wikipedia.alpha:id/action_mode_close_button",
+  inputSavedSearch: "org.wikipedia.alpha:id/search_src_text",
+  btnBalloonGotIt: "org.wikipedia.alpha:id/buttonView",
+  readingListToolbar: "org.wikipedia.alpha:id/reading_list_toolbar",
+  readingListTitle: "org.wikipedia.alpha:id/item_title",
+  readingListItemTitle: "org.wikipedia.alpha:id/page_list_item_title",
+  btnNavigateUp: "Navigate up"
 };

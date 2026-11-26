@@ -41,8 +41,8 @@ Always import the required Page Object Model(s) at the top of the step:
 
 ### 3. Zero Hardcoded Selectors
 Never write raw element IDs, accessibility labels, or text regexes inside `steps/`.
-* ✅ **Correct:** `id: ${output.searchScreen.inputSearchCard}`
-* ❌ **Forbidden:** `id: "org.wikipedia.alpha:id/search_card"`
+* ✅ **Correct:** `id: ${output.loginScreen.inputEmail}`
+* ❌ **Forbidden:** `id: "com.example.app:id/input_email"`
 
 ### 4. Zero Hardcoded Test Data (Parameterization)
 Steps must be reusable with any test data:
@@ -72,67 +72,60 @@ Whenever typing into an input field, always follow the safe sequence:
 * Never add `- wait: <ms>`. Maestro commands automatically wait up to their command timeout for elements to appear.
 
 ### 7. Clarification Gate (Rule 5)
-If you are asked to automate an action whose UI sequence or entry point is unknown:
-* **STOP and ask the user for directions** before guessing button taps.
+Follow **Rule 5** in `.agents/AGENTS.md`: if the UI sequence or entry point is unknown, check `context/test-flows.md` first, and stop to ask the user before guessing button taps.
 
 ---
 
 ## Standard Step Templates
 
-### Pattern A: Navigation Step (`steps/navigation/open-search.yaml`)
+### Pattern A: Navigation Step (`steps/navigation/open-settings.yaml`)
 ```yaml
-# Reusable Action Step: Open Search Screen
+# Reusable Action Step: Open Settings Screen
 - runScript: ../../pom/home.pom.js
-- runScript: ../../pom/search.pom.js
+- runScript: ../../pom/settings.pom.js
 
 - tapOn:
-    id: ${output.homeScreen.navTabSearch}
+    id: ${output.homeScreen.navTabSettings}
 
-# Anchor verification: Confirm arrival on Search screen
+# Anchor verification: Confirm arrival on Settings screen
 - assertVisible:
-    id: ${output.searchScreen.inputSearchCard}
+    id: ${output.settingsScreen.headerTitle}
 ```
 
-### Pattern B: Form Input / Search Step (`steps/search/search-article.yaml`)
+### Pattern B: Form Input Step (`steps/auth/login-user.yaml`)
 ```yaml
-# Reusable Action Step: Search Article
-- runScript: ../../pom/search.pom.js
+# Reusable Action Step: Login User
+- runScript: ../../pom/login.pom.js
 
 - tapOn:
-    id: ${output.searchScreen.inputSearchCard}
+    id: ${output.loginScreen.inputEmail}
 - eraseText
-- inputText: ${query}
+- inputText: ${email}
 - hideKeyboard
 
-# Wait for search results and tap first item
 - tapOn:
-    id: ${output.searchScreen.historyList}
+    id: ${output.loginScreen.btnSubmit}
 ```
 
-### Pattern C: Conditional Step (`steps/onboarding/dismiss-onboarding.yaml`)
+### Pattern C: Conditional Overlay Step (`steps/common/dismiss-promo-banner.yaml`)
 ```yaml
-# Reusable Action Step: Dismiss Onboarding
-- runScript: ../../pom/onboarding.pom.js
-- runScript: ../../pom/home.pom.js
+# Reusable Action Step: Dismiss Optional Promo Banner
+- runScript: ../../pom/promo.pom.js
 
 - runFlow:
     when:
-      visible: ${output.onboardingScreen.btnForward}
+      visible: ${output.promoBanner.btnClose}
     commands:
-      - tapOn: ${output.onboardingScreen.btnForward}
-      - tapOn: ${output.onboardingScreen.btnForward}
-      - tapOn: ${output.onboardingScreen.btnForward}
-      - tapOn: ${output.onboardingScreen.btnSkip}
-
-- assertVisible:
-    id: ${output.homeScreen.navTabHome}
+      - tapOn:
+          id: ${output.promoBanner.btnClose}
 ```
 
 ---
 
 ## Pre-flight Lint Verification
 
-After creating or modifying a step, verify syntax across the repository:
+After creating or modifying a step, validate the step file directly (and run `npm run lint` for any consuming tests):
 ```bash
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner lint steps/<feature>/<action>.yaml
 npm run lint
 ```

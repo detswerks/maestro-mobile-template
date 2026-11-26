@@ -1,0 +1,26 @@
+appId: ${APP_ID}
+tags:
+  - smoke
+  - home
+  - saved
+commandTimeout: 10000
+---
+# 1. Load POM Locators
+- runScript: ../../pom/index.js
+
+# 2. Mandatory Clean State Launch
+- launchApp:
+    clearState: true
+
+# 3. Dismiss Onboarding & Land on Home
+- runFlow: ../../steps/onboarding/dismiss-onboarding.yaml
+
+# 4. Save Featured Article Directly from Home Feed
+- runFlow: ../../steps/home/save-featured-from-home.yaml
+- assertVisible: ${output.homeScreen.txtSaved}
+
+# 5. Navigate to Saved Tab & Verify Saved State
+- runFlow: ../../steps/navigation/open-saved-list.yaml
+- assertVisible: ${output.savedListScreen.tabAllArticles}
+- assertVisible:
+    id: ${output.savedListScreen.btnMenuSearchLists}

@@ -1,0 +1,34 @@
+# Reusable Action Step: Save Current Article to a New Custom Reading List
+- runScript: ../../pom/article_detail.pom.js
+
+# Dismiss optional "Customize your toolbar" balloon tooltip if shown
+- runFlow:
+    when:
+      visible:
+        id: ${output.articleDetailScreen.btnButtonView}
+    commands:
+      - tapOn:
+          id: ${output.articleDetailScreen.btnButtonView}
+
+# Open Save Bottom Sheet and Create New Reading List
+- tapOn:
+    id: ${output.articleDetailScreen.pageSave}
+- assertVisible: ${output.articleDetailScreen.txtSaved}
+- tapOn: ${output.articleDetailScreen.btnCreateNewReadingList}
+
+# Enter Reading List Name & Description
+- tapOn:
+    id: ${output.articleDetailScreen.inputReadingListName}
+- eraseText
+- inputText: ${listName}
+- tapOn:
+    id: ${output.articleDetailScreen.inputReadingListDescription}
+- eraseText
+- inputText: ${listDescription}
+- hideKeyboard
+- tapOn:
+    id: ${output.articleDetailScreen.btnDialogOk}
+
+# Confirm returned to Article Detail
+- assertVisible:
+    id: ${output.articleDetailScreen.pageSave}

@@ -1,0 +1,26 @@
+# Reusable Action Step: Save Current Article to Reading List
+- runScript: ../../pom/article_detail.pom.js
+
+# Dismiss optional "Customize your toolbar" balloon tooltip if shown
+- runFlow:
+    when:
+      visible:
+        id: ${output.articleDetailScreen.btnButtonView}
+    commands:
+      - tapOn:
+          id: ${output.articleDetailScreen.btnButtonView}
+
+# Tap Save Action on Article Bottom Bar
+- tapOn:
+    id: ${output.articleDetailScreen.pageSave}
+
+# Verify Saved Confirmation State
+- assertVisible: ${output.articleDetailScreen.txtSaved}
+
+# Dismiss Reading List Bottom Sheet if Open (back avoids tapping inside the sheet via touchOutside center)
+- runFlow:
+    when:
+      visible:
+        id: ${output.articleDetailScreen.designBottomSheet}
+    commands:
+      - back

@@ -2,28 +2,31 @@ appId: ${APP_ID}
 tags:
   - smoke
   - search
-  - article
+  - saved
+commandTimeout: 10000
 ---
-# 1. Load Test Data & POM Locators
+# 1. Load Data & POM Locators
 - runScript: ../../data/search-data.js
 - runScript: ../../pom/index.js
 
-# 2. Launch App with Clean State
+# 2. Mandatory Clean State Launch (Guarantees Test Isolation)
 - launchApp:
     clearState: true
 
-# 3. Dismiss Initial Onboarding Flow (Prerequisite Step)
+# 3. Prerequisite: Dismiss Onboarding & Land on Home
 - runFlow: ../../steps/onboarding/dismiss-onboarding.yaml
 
-# 4. Navigate to Search Screen
-- runFlow: ../../steps/navigation/open-search.yaml
-
-# 5. Search for Article & Open Detail Screen
+# 4. Search & Open First Article Result
 - runFlow:
-    file: ../../steps/search/search-and-select-article.yaml
+    file: ../../steps/search/search-and-open-article.yaml
     env:
       query: ${output.searchData.query}
-      expectedTitle: ${output.searchData.expectedTitle}
+      articleTitleRegex: ${output.searchData.expectedArticleRegex}
 
-# 6. Verify Article Detail & Save Article
-- runFlow: ../../steps/article/save-article.yaml
+# 5. Save Current Article
+- runFlow: ../../steps/article/save-current-article.yaml
+
+# 6. Navigate to Saved Articles & Verify Article Appears in Saved List
+- runFlow: ../../steps/navigation/open-saved-list.yaml
+- assertVisible: ${output.savedListScreen.tabAllArticles}
+- assertVisible: ${output.searchData.expectedArticleRegex}

@@ -1,0 +1,33 @@
+# Reusable Action Step: Search Invalid Query, Verify Empty State, and Clear Input
+- runScript: ../../pom/home.pom.js
+- runScript: ../../pom/search.pom.js
+
+# Navigate to Search Tab and dismiss optional widget prompt
+- tapOn:
+    id: ${output.homeScreen.navTabSearch}
+- runFlow:
+    when:
+      visible: ${output.searchScreen.btnCloseWidgetPrompt}
+    commands:
+      - tapOn: ${output.searchScreen.btnCloseWidgetPrompt}
+
+# Open Search Input and enter non-matching query
+- runFlow:
+    when:
+      visible:
+        id: ${output.searchScreen.inputSearchCard}
+    commands:
+      - tapOn:
+          id: ${output.searchScreen.inputSearchCard}
+- tapOn:
+    id: ${output.searchScreen.inputSearchSrcText}
+- eraseText
+- inputText: ${invalidQuery}
+- hideKeyboard
+
+# Verify empty search state and clear query
+- assertVisible: ${output.searchScreen.txtNoResults}
+- tapOn:
+    id: ${output.searchScreen.inputSearchCloseBtn}
+- assertVisible:
+    id: ${output.searchScreen.inputSearchSrcText}

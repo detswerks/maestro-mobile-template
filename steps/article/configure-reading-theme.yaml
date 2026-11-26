@@ -1,0 +1,39 @@
+# Reusable Action Step: Configure Article Reading Theme & Text Size
+- runScript: ../../pom/article_detail.pom.js
+
+# Dismiss optional "Customize your toolbar" balloon tooltip if shown
+- runFlow:
+    when:
+      visible:
+        id: ${output.articleDetailScreen.btnButtonView}
+    commands:
+      - tapOn:
+          id: ${output.articleDetailScreen.btnButtonView}
+
+# Open Theme chooser sheet
+- tapOn:
+    id: ${output.articleDetailScreen.pageTheme}
+- assertVisible:
+    id: ${output.articleDetailScreen.textSizePercent}
+
+# Increase font size, switch to serif, select Sepia theme
+- tapOn:
+    id: ${output.articleDetailScreen.btnIncreaseTextSize}
+- assertNotVisible: ${defaultTextSizeLabel}
+- tapOn:
+    id: ${output.articleDetailScreen.btnFontSerif}
+- tapOn:
+    id: ${output.articleDetailScreen.btnThemeSepia}
+
+# Wait for theme change re-render to settle, then close Theme chooser sheet
+- assertVisible:
+    id: ${output.articleDetailScreen.textSizePercent}
+- back
+- runFlow:
+    when:
+      visible:
+        id: ${output.articleDetailScreen.textSizePercent}
+    commands:
+      - back
+- assertVisible:
+    id: ${output.articleDetailScreen.pageSave}

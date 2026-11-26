@@ -1,0 +1,20 @@
+appId: ${APP_ID}
+tags:
+  - demo
+commandTimeout: 5000
+---
+# Intentional Failure Demo: Verify failure screenshot & hierarchy capture mechanism
+- runScript: ../../data/search-data.js
+- runScript: ../../pom/index.js
+
+# 1. Mandatory Clean State Launch
+- launchApp:
+    clearState: true
+
+# 2. Dismiss Onboarding & Navigate to Saved List
+- runFlow: ../../steps/onboarding/dismiss-onboarding.yaml
+- runFlow: ../../steps/navigation/open-saved-list.yaml
+- assertVisible: ${output.savedListScreen.tabAllArticles}
+
+# 3. Purposely Failing Assertion (triggers on-failure screenshot + hierarchy dump)
+- assertVisible: ${output.searchData.nonExistentSavedArticle}

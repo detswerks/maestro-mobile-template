@@ -1,0 +1,49 @@
+appId: ${APP_ID}
+tags:
+  - smoke
+  - search
+commandTimeout: 10000
+---
+# 1. Load Data & POM Locators
+- runScript: ../../data/search-data.js
+- runScript: ../../pom/index.js
+
+# 2. Mandatory Clean State Launch
+- launchApp:
+    clearState: true
+
+# 3. Dismiss Onboarding
+- runFlow: ../../steps/onboarding/dismiss-onboarding.yaml
+
+# 4. Verify No-Results Empty State & Clear Query
+- runFlow:
+    file: ../../steps/search/search-invalid-and-clear.yaml
+    env:
+      invalidQuery: ${output.searchData.noResultsQuery}
+
+# 5. Search Valid Query & Open Article
+- tapOn:
+    id: ${output.searchScreen.inputSearchSrcText}
+- inputText: ${output.searchData.query}
+- hideKeyboard
+- assertVisible:
+    id: ${output.searchScreen.inputFragmentSearchResults}
+- tapOn:
+    text: ${output.searchData.expectedArticleRegex}
+    below:
+      id: ${output.searchScreen.inputSearchToolbar}
+- assertVisible:
+    id: ${output.articleDetailScreen.pageSave}
+
+# 6. Return to Search Input and Verify Recent Searches Persistence
+- back
+- tapOn:
+    id: ${output.searchScreen.inputSearchCloseBtn}
+- assertVisible:
+    id: ${output.searchScreen.recentSearchesContainer}
+- assertVisible:
+    id: ${output.searchScreen.headerRecentSearches}
+- assertVisible:
+    text: ${output.searchData.query}
+    below:
+      id: ${output.searchScreen.headerRecentSearches}

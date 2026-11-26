@@ -1,0 +1,29 @@
+# Reusable Action Step: Unsave Current Article
+- runScript: ../../pom/article_detail.pom.js
+
+# Open Saved options sheet for current article
+- tapOn:
+    id: ${output.articleDetailScreen.pageSave}
+- assertVisible: ${output.articleDetailScreen.txtSaved}
+- tapOn: ${output.articleDetailScreen.txtSaved}
+
+# Confirm unsave if prompted (when article belongs to a reading list)
+- runFlow:
+    when:
+      visible:
+        id: ${output.articleDetailScreen.headerUnsaveDialog}
+    commands:
+      - tapOn:
+          id: ${output.articleDetailScreen.btnDialogOk}
+
+# Dismiss bottom sheet if still open
+- runFlow:
+    when:
+      visible:
+        id: ${output.articleDetailScreen.designBottomSheet}
+    commands:
+      - back
+
+# Verify still on Article Detail
+- assertVisible:
+    id: ${output.articleDetailScreen.pageSave}

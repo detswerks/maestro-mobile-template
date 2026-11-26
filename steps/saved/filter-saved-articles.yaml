@@ -1,0 +1,21 @@
+# Reusable Action Step: Filter Saved Articles and Verify Match
+- runScript: ../../pom/saved_list.pom.js
+
+# Open Saved search bar and enter filter keyword
+- tapOn:
+    id: ${output.savedListScreen.btnMenuSearchLists}
+- tapOn:
+    id: ${output.savedListScreen.inputSavedSearch}
+- eraseText
+- inputText: ${filterKeyword}
+- hideKeyboard
+
+# Verify filtered match and exclusion
+- assertVisible:
+    text: ${expectedVisibleRegex}
+- assertNotVisible:
+    text: ${expectedHiddenRegex}
+
+# Exit filter mode
+- tapOn:
+    id: ${output.savedListScreen.actionModeCloseButton}

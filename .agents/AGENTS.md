@@ -34,8 +34,8 @@ To eliminate selector duplication and ensure maintainability, all code belongs t
      ```bash
      npm run pom:scan <screen_name>
      # Or directly:
-     maestro-runner --platform android hierarchy --compact
-     maestro-runner --platform android hierarchy --find "<keyword>"
+     MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --platform android --driver uiautomator2 hierarchy --compact
+     MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --platform android --driver uiautomator2 hierarchy --find "<keyword>"
      ```
   2. Extract the verified `id` (or text regex if no ID exists).
   3. Create/update the POM in `pom/<screen>.pom.js` and register it in `pom/index.js`.
@@ -53,7 +53,7 @@ To eliminate selector duplication and ensure maintainability, all code belongs t
 ## 4. Test Execution & Determinism Rules
 
 * **Mandatory Clean State (`launchApp: clearState: true`):** Every test scenario in `tests/` must begin with `- launchApp: clearState: true`. This guarantees complete test isolation, prevents cache or preference pollution across runs, and ensures tests can execute independently in any order. Any prerequisites must be declared explicitly via Tier 2 `steps/`.
-* **Pre-flight Lint:** Always run `maestro-runner lint tests/` before executing to ensure no broken `runFlow` paths or syntax errors exist.
+* **Pre-flight Lint:** Always lint modified files before executing (`MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner lint tests/<feature>/<scenario>.yaml` or `steps/<feature>/<action>.yaml`, or `npm run lint` for `tests/`) to ensure valid syntax and `runFlow` paths.
 * **Preserve `appId`:** Always keep `appId: ${APP_ID}` in flow headers.
 * **No Arbitrary Sleeps:** Never add `- wait: <ms>` unless waiting for external time-delayed events. Maestro commands wait automatically up to their timeout.
 * **Text Input:** Always `tapOn` an input field before `inputText`, and use `eraseText` first to avoid appending characters to pre-filled fields.
@@ -63,10 +63,12 @@ To eliminate selector duplication and ensure maintainability, all code belongs t
 
 ## 5. Navigation Clarity & Clarification Gate (Zero Blind Exploration)
 
+* **Consult `context/test-flows.md` First When Unsure:**
+  Whenever you are uncertain how to reach a screen, handle a modal/popup, or pick a selector pattern, **check `context/test-flows.md` first** (the Mermaid navigation graph, routing table, and *Learned Nuances & Anti-Patterns*) before asking the user or interacting with the device.
 * **Never guess navigation paths or explore blindly:**
-  If you are asked to scan a screen or automate a feature, and:
+  If you are asked to scan a screen, create a step, or automate a feature, and:
   1. The target screen is not currently visible on the active device, AND
-  2. The navigation path to reach it is not documented in `context/app-description.md` or existing `steps/`,
+  2. The navigation path to reach it is not documented in `context/test-flows.md`, `context/app-description.md`, or existing `steps/`,
   
   **You MUST STOP and ask the user for directions before performing any actions.**
 
@@ -101,57 +103,58 @@ To eliminate selector duplication and ensure maintainability, all code belongs t
 ### 7.1 Diagnostic & Environment Commands
 ```bash
 # Verify local toolchain, dependencies, and platform drivers
-npx maestro-runner doctor
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner doctor
 
 # List all active/connected physical devices and emulators
-npx maestro-runner devices
-npx maestro-runner devices --json # Machine-readable device list for automation
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner devices
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner devices --json # Machine-readable device list for automation
 ```
 
 ### 7.2 Live Screen Inspection & Locator Discovery
 ```bash
 # Print active UI hierarchy in compact format (one element per line)
-npx maestro-runner --platform android hierarchy --compact
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --platform android --driver uiautomator2 hierarchy --compact
 
 # Search active screen hierarchy for specific keyword or text
-npx maestro-runner --platform android hierarchy --find "Search Wikipedia"
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --platform android --driver uiautomator2 hierarchy --find "Sign in"
 
 # Capture a full screenshot of the active device screen
-npx maestro-runner --platform android screenshot screenshot.png
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --platform android --driver uiautomator2 screenshot screenshot.png
 ```
 
 ### 7.3 Test Execution & Core Flags
 ```bash
 # Standard targeted test execution (Android default)
-npx maestro-runner --env-file .env --driver uiautomator2 test tests/<feature>/<test-file>.yaml
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --env-file .env --driver uiautomator2 test tests/<feature>/<test-file>.yaml
 
 # iOS simulator / device execution
-npx maestro-runner --env-file .env --platform ios --driver wda test tests/<feature>/<test-file>.yaml
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --env-file .env --platform ios --driver wda test tests/<feature>/<test-file>.yaml
 
 # Web / Desktop Chrome execution
-npx maestro-runner --platform web --headed test tests/<feature>/<test-file>.yaml
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --platform web --headed test tests/<feature>/<test-file>.yaml
 
 # Passing dynamic environment variables
-npx maestro-runner test -e KEY=value -e ANOTHER_KEY=value tests/<feature>/<test-file>.yaml
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --driver uiautomator2 test -e KEY=value -e ANOTHER_KEY=value tests/<feature>/<test-file>.yaml
 
 # Running tests filtered by tags
-npx maestro-runner test --include-tags smoke --exclude-tags flaky tests/
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --env-file .env --driver uiautomator2 test --include-tags smoke --exclude-tags flaky tests/
 
 # Install app package before test execution (.apk, .app, .ipa)
-npx maestro-runner --app-file app.apk test tests/<feature>/<test-file>.yaml
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --env-file .env --driver uiautomator2 --app-file app.apk test tests/<feature>/<test-file>.yaml
 
 # Parallel execution across multiple devices
-npx maestro-runner --parallel 2 test tests/
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --env-file .env --driver uiautomator2 test --parallel 2 tests/
 
 # Screen recording (saves recording.mp4 in report assets)
-npx maestro-runner --record test tests/<feature>/<test-file>.yaml
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner --env-file .env --driver uiautomator2 test --record tests/<feature>/<test-file>.yaml
 ```
 
 ### 7.4 Pre-flight Syntax & Flow Validation
 ```bash
 # Validate flow syntax, references, and runFlow paths without waking a device
-npx maestro-runner lint tests/
-npx maestro-runner lint tests/<feature>/<test-file>.yaml
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner lint tests/<feature>/<test-file>.yaml
+MAESTRO_RUNNER_NO_TELEMETRY=1 npx maestro-runner lint steps/<feature>/<action>.yaml
+npm run lint # Validates all scenarios under tests/
 ```
 
 ---

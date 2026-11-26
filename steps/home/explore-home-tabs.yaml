@@ -1,0 +1,14 @@
+# Reusable Action Step: Explore Home Feed Tabs
+- runScript: ../../pom/home.pom.js
+
+# Switch to "For you" feed tab and dismiss optional "Swipe to explore" tutorial dialog
+- tapOn: ${output.homeScreen.tabForYou}
+- runFlow:
+    when:
+      visible: ${output.homeScreen.btnGotIt}
+    commands:
+      - tapOn: ${output.homeScreen.btnGotIt}
+
+# Return to "Community" feed tab and verify featured article section
+- tapOn: ${output.homeScreen.tabCommunity}
+- assertVisible: ${output.homeScreen.headerFeaturedArticle}
